@@ -12,7 +12,7 @@ import math
 
 # HyperParameters
 learning_rate = 0.001
-num_epochs = 100
+num_epochs = 3
 im_sz = 784 # size of the image
 z_sz = 4 # note that z = [z_mu, z_logvar]
 enc_fc1_sz = 400
@@ -125,9 +125,9 @@ for epoch in range(num_epochs):
         L.backward()
         optimizer.step()
 
-        KL_.append(KL.data[0])
-        XEnt_.append(XEnt.data[0])
-        L_.append(L.data[0])
+        KL_.append(KL.item())
+        XEnt_.append(XEnt.item())
+        L_.append(L.item())
 
         np_sample_z = np.random.normal(0,1,(batch_sz, int(z_sz/2)))
         sample_z = to_var(torch.from_numpy(np_sample_z).float())
@@ -135,8 +135,8 @@ for epoch in range(num_epochs):
         if batch_idx % 100 == 0:
             print ("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f, "
                    "KL Loss: %.7f, XEnt Loss: %.4f, "
-                   %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.data[0],
-                     KL.data[0], XEnt.data[0]))
+                   %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.item(),
+                     KL.item(), XEnt.item()))
 
     reconst_images, _, _ = vae(fixed_x)
     reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)

@@ -15,7 +15,7 @@ import operator
 learning_rate = 0.001
 num_epochs = 4
 im_sz = 784 # size of the image
-z_sz = 20 # z = [z_style, z_content]
+z_sz = 2 # z = [z_style, z_content]
 enc_fc1_sz = 400
 dec_fc1_sz = 400
 batch_sz = 100
@@ -96,11 +96,12 @@ class TompkinNet(nn.Module):
 
 def vae_loss(x, out, mu, logvar):
     KL_divergence = -0.5*torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-    cross_entropy = F.binary_cross_entropy(out, x.view(-1, im_sz), size_average=False)
+    KL_divergence /= (batch_sz*im_sz)
+    cross_entropy = F.binary_cross_entropy(out, x.view(-1, im_sz))
     return KL_divergence, cross_entropy
 
 def link_loss(linkout, eq_labels):
-    return F.binary_cross_entropy(linkout, eq_labels, size_average=False)
+    return F.binary_cross_entropy(linkout, eq_labels)
 
 tnet = TompkinNet()
 print(tnet)
@@ -141,16 +142,16 @@ for epoch in range(num_epochs):
         L.backward()
         optimizer.step()
 
-        KL_.append(KL.data[0])
-        XEnt_.append(XEnt.data[0])
-        Linkloss_.append(linkloss.data[0])
-        L_.append(L.data[0])
+        KL_.append(KL.item())
+        XEnt_.append(XEnt.item())
+        Linkloss_.append(linkloss.item())
+        L_.append(L.item())
 
         if batch_idx % 100 == 0:
             print ("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f, "
                    "KL Loss: %.7f, XEnt Loss: %.4f, Link Loss: %.4f"
-                   %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.data[0],
-                     KL.data[0], XEnt.data[0], linkloss.data[0]))
+                   %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.item(),
+                     KL.item(), XEnt.item(), linkloss.item()))
 
 
 plt.plot(KL_, label="KL Loss")
