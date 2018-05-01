@@ -13,9 +13,9 @@ import operator
 
 # HyperParameters
 learning_rate = 0.001
-num_epochs = 100
+num_epochs = 4
 im_sz = 784 # size of the image
-z_sz = 4 # note that z = [z_mu, z_logvar] # must be divisible by 4
+z_sz = 20 # z = [z_style, z_content]
 enc_fc1_sz = 400
 dec_fc1_sz = 400
 batch_sz = 100
@@ -44,29 +44,34 @@ class TompkinNet(nn.Module):
 
         # Encoder Layers
         self.enc_fc1 = nn.Linear(im_sz, enc_fc1_sz)
-        self.enc_fc2 = nn.Linear(enc_fc1_sz, z_sz)
+        self.enc_fc2 = nn.Linear(enc_fc1_sz, int(2*z_sz))
 
         # Decoder Layers
-        self.dec_fc1 = nn.Linear(int(z_sz/2), dec_fc1_sz)
+        self.dec_fc1 = nn.Linear(z_sz, dec_fc1_sz)
         self.dec_fc2 = nn.Linear(dec_fc1_sz, im_sz)
 
         # Link Layers
-        self.link_fc1 = nn.Linear(2,2)
+        self.link_fc1 = nn.Linear(z_sz,2)
 
+    # FC -> Leaky Relu -> Fc
     def encode(self,x):
         return self.enc_fc2(F.leaky_relu(self.enc_fc1(x),0.2))
 
+    # FC -> Relu -> FC -> Sigmoid
     def decode(self,x):
         return F.sigmoid(self.dec_fc2(F.relu(self.dec_fc1(x))))
 
+    # FC -> Sigmoid
     def linknet(self, x):
         return F.sigmoid(self.link_fc1(x))
 
+    # Reperam Trick (See paper)
     def reperam(self,mu,logvar):
         eps = to_var(torch.randn(mu.size(0), mu.size(1)))
         z = mu + eps*torch.exp(logvar/2)
         return z
 
+    # Vae Part of Net (See Paper)
     def forward_vae(self, x):
         h = self.encode(x)
         mu, logvar = torch.chunk(h,2,dim=1)
@@ -74,25 +79,28 @@ class TompkinNet(nn.Module):
         out = self.decode(z)
         return out, mu, logvar, z
 
+    # Forward pass of net for images x1, x2
     def forward(self, x1, x2):
         out1, mu1, logvar1, z1  = self.forward_vae(x1)
         out2, mu2, logvar2, z2  = self.forward_vae(x2)
-        style = torch.cat((z1[:,0:1], z2[:,0:1]), -1)
+        z1_style, _ = torch.chunk(z1, 2, dim=1)
+        z2_style, _ = torch.chunk(z2, 2, dim=1)
+        style = torch.cat((z1_style, z2_style), -1)
         linkout = self.linknet(style)
         return out1, mu1, logvar1, out2, mu2, logvar2, linkout
 
-
+    # Given a z, get an x
     def sample(self,z):
         return self.decode(z)
 
 
-def loss(x, out, mu, logvar):
+def vae_loss(x, out, mu, logvar):
     KL_divergence = -0.5*torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     cross_entropy = F.binary_cross_entropy(out, x.view(-1, im_sz), size_average=False)
-    return KL_divergence + cross_entropy, KL_divergence, cross_entropy
+    return KL_divergence, cross_entropy
 
-def total_loss(x1, out1, mu1, logvar1, x2, out2, mu2, logvar2):
-    return tuple(map(operator.add,loss(x1, out1, mu1, logvar1),loss(x2, out2, mu2, logvar2)))
+def link_loss(linkout, eq_labels):
+    return F.binary_cross_entropy(linkout, eq_labels, size_average=False)
 
 tnet = TompkinNet()
 print(tnet)
@@ -100,42 +108,11 @@ print(tnet)
 optimizer = torch.optim.Adam(tnet.parameters(), lr=learning_rate)
 iter_per_epoch = len(data_loader)
 
-# For debugging
-data_iter = iter(data_loader)
-fixed_x, _ = next(data_iter)
-torchvision.utils.save_image(fixed_x.cpu(), './data/real_images.png')
-fixed_x = to_var(fixed_x.view(fixed_x.size(0), -1))
-
 # For Plotting
 KL_ = []
 XEnt_ = []
-Link_ = []
+Linkloss_ = []
 L_ = []
-
-
-
-# Inverse CDF Stuff .. don't really worry about this #
-def icdf(v):
-    return torch.erfinv(2 * torch.Tensor([float(v)]) - 1) * math.sqrt(2)
-
-z_2d = np.zeros((104, 2))
-for j in range(0,104):
-    row = j/8
-    col = j%8
-    row_z = icdf((1.0/14.0) + (1.0/14.0)*row)
-    col_z = icdf((1.0/9.0) + (1.0/9.0)*col)
-    z_2d[j] = np.array([row_z, col_z])
-z_2d_tensor = to_var(torch.from_numpy(z_2d).float())
-
-
-
-np_sample_z = np.random.normal(0,1,(batch_sz, int(z_sz/2)))
-sample_z = to_var(torch.from_numpy(np_sample_z).float())
-reconst_images = tnet.sample(sample_z)
-reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
-torchvision.utils.save_image(reconst_images.data.cpu(),
-    './data/init_sample.png')
-
 
 
 for epoch in range(num_epochs):
@@ -144,39 +121,30 @@ for epoch in range(num_epochs):
         images1, images2 = torch.chunk(images, 2, dim=0)
         labels1, labels2 = torch.chunk(labels, 2, dim=0)
 
-        longs = labels1.eq(labels2).float().view(50,1)
-        longscat = torch.cat((1-longs, longs), dim=1)
-        eq_ = Variable(longscat)
+        eq_labels_vec = labels1.eq(labels2).float().view(50,1)
+        eq_labels_onehot = torch.cat((1-eq_labels_vec, eq_labels_vec), dim=1)
+        eq_labels = Variable(eq_labels_onehot)
 
         out1, mu1, logvar1, out2, mu2, logvar2, linkout = tnet(images1, images2)
-        L, KL, XEnt = total_loss(images1, out1, mu1, logvar1, images2, out2, mu2, logvar2)
 
-        linkloss = F.binary_cross_entropy(linkout, eq_, size_average=False)
-        L = L + linkloss
+        # Calculate Loss
+        KL1, XEnt1 = vae_loss(images1, out1, mu1, logvar1)
+        KL2, XEnt2 = vae_loss(images2, out2, mu2, logvar2)
+        linkloss = link_loss(linkout, eq_labels)
+
+        KL = KL1 + KL2
+        XEnt = XEnt1 + XEnt2
+        L = KL + XEnt + linkloss
+
+        # Gradient Stuff
         optimizer.zero_grad()
         L.backward()
         optimizer.step()
 
         KL_.append(KL.data[0])
         XEnt_.append(XEnt.data[0])
-        Link_.append(linkloss.data[0])
+        Linkloss_.append(linkloss.data[0])
         L_.append(L.data[0])
-
-        out1, mu1, logvar1, out2, mu2, logvar2, linkout = tnet(images2, images1)
-        L, KL, XEnt = total_loss(images1, out1, mu1, logvar1, images2, out2, mu2, logvar2)
-        linkloss = F.binary_cross_entropy(linkout, eq_, size_average=False)
-        L = L + linkloss
-        optimizer.zero_grad()
-        L.backward()
-        optimizer.step()
-
-        KL_.append(KL.data[0])
-        XEnt_.append(XEnt.data[0])
-        Link_.append(linkloss.data[0])
-        L_.append(L.data[0])
-
-        np_sample_z = np.random.normal(0,1,(batch_sz, int(z_sz/2)))
-        sample_z = to_var(torch.from_numpy(np_sample_z).float())
 
         if batch_idx % 100 == 0:
             print ("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f, "
@@ -184,42 +152,10 @@ for epoch in range(num_epochs):
                    %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.data[0],
                      KL.data[0], XEnt.data[0], linkloss.data[0]))
 
-    reconst_images, _, _, _ = tnet.forward_vae(fixed_x)
-    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
-    torchvision.utils.save_image(reconst_images.data.cpu(),
-        './data/reconst3_images_%d.png' %(epoch+1))
-
-
-    '''
-    np_sample_z = np.zeros((batch_sz, int(z_sz/2)))
-    np_sample_z[0,:] = np.random.normal(0,1,int(z_sz/2))
-    for j in range(1,batch_sz):
-        np_sample_z[j,:] = np_sample_z[j-1,:] + (1/np.sqrt(batch_sz))*np.random.normal(0,1,int(z_sz/2))
-
-    sample_z = to_var(torch.from_numpy(np_sample_z).float())
-
-    reconst_images = tnet.sample(sample_z)
-    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
-    torchvision.utils.save_image(reconst_images.data.cpu(),
-        './data/sample_%d.png' %(epoch+1))
-
-    np_sample_z = np.random.normal(0,1,(batch_sz, int(z_sz/2)))
-    sample_z = to_var(torch.from_numpy(np_sample_z).float())
-
-    reconst_images = tnet.sample(sample_z)
-    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
-    torchvision.utils.save_image(reconst_images.data.cpu(),
-        './data/rand_sample_%d.png' %(epoch+1))
-    '''
-    reconst_images = tnet.sample(z_2d_tensor)
-    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
-    torchvision.utils.save_image(reconst_images.data.cpu(),
-        './data/manifold3_%d.png' %(epoch+1))
-
 
 plt.plot(KL_, label="KL Loss")
 plt.plot(XEnt_, label="XEnt Loss")
-plt.plot(Link_, label="Linked Loss")
+plt.plot(Linkloss_, label="Linked Loss")
 plt.plot(L_, label="Total Loss")
 
 plt.legend()
