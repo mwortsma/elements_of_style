@@ -15,7 +15,7 @@ import operator
 learning_rate = 0.001
 num_epochs = 4
 im_sz = 784 # size of the image
-z_sz = 2 # z = [z_style, z_content]
+z_sz = 20 # z = [z_style, z_content]
 enc_fc1_sz = 400
 dec_fc1_sz = 400
 batch_sz = 100
@@ -107,7 +107,15 @@ tnet = TompkinNet()
 print(tnet)
 
 optimizer = torch.optim.Adam(tnet.parameters(), lr=learning_rate)
+
 iter_per_epoch = len(data_loader)
+data_iter = iter(data_loader)
+
+# fixed inputs for debugging
+fixed_z = to_var(torch.randn(100, z_sz))
+fixed_x, _ = next(data_iter)
+torchvision.utils.save_image(fixed_x.cpu(), './data/real_images.png')
+fixed_x = to_var(fixed_x.view(fixed_x.size(0), -1))
 
 # For Plotting
 KL_ = []
@@ -152,6 +160,17 @@ for epoch in range(num_epochs):
                    "KL Loss: %.7f, XEnt Loss: %.4f, Link Loss: %.4f"
                    %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.item(),
                      KL.item(), XEnt.item(), linkloss.item()))
+
+    # Save the reconstructed images
+    reconst_images, _, _, _ = tnet.forward_vae(fixed_x)
+    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
+    torchvision.utils.save_image(reconst_images.data.cpu(),
+        './data/reconst_images_%d.png' %(epoch+1))
+
+    reconst_images = tnet.sample(fixed_z)
+    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
+    torchvision.utils.save_image(reconst_images.data.cpu(),
+        './data/sample_%d.png' %(epoch+1))
 
 
 plt.plot(KL_, label="KL Loss")
