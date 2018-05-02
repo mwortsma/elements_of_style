@@ -169,8 +169,7 @@ for epoch in range(num_epochs):
 
         KL = KL1 + KL2
         XEnt = XEnt1 + XEnt2
-        #L = KL + XEnt + linkloss
-        L = linkloss
+        L = KL + XEnt + linkloss
 
         # Gradient Stuff
         optimizer.zero_grad()
