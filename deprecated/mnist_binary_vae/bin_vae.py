@@ -12,7 +12,7 @@ import math
 
 # HyperParameters
 learning_rate = 0.001
-num_epochs = 3
+num_epochs = 100
 im_sz = 784 # size of the image
 z_sz = 4 # note that z = [z_mu, z_logvar]
 enc_fc1_sz = 400
