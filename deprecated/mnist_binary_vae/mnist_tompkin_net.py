@@ -165,8 +165,6 @@ for epoch in range(num_epochs):
         print(linkout.max(dim=1)[1].view((batch_sz/2, 1)).sum())
         #print(linkout.max(dim=1)[1].view((batch_sz/2, 1)))
 
-        linkaccuracy /= (batch_sz/2)
-
         KL = KL1 + KL2
         XEnt = XEnt1 + XEnt2
         L = KL + XEnt + linkloss
@@ -187,7 +185,7 @@ for epoch in range(num_epochs):
                    "KL Loss: %.7f, XEnt Loss: %.4f, Link Loss: %.4f, "
                    "Link Accuracy %.4f"
                    %(epoch+1, num_epochs, batch_idx+1, iter_per_epoch, L.item(),
-                     KL.item(), XEnt.item(), linkloss.item(), linkaccuracy.item()))
+                     KL.item(), XEnt.item(), linkloss.item(), linkaccuracy.item()/(batch_sz/2.0)))
 
 
     # Save the reconstructed images
