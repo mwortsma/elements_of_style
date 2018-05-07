@@ -17,7 +17,7 @@ def imshow(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
 
 # Parameters
-data_dir = '../../data/CIFAR10'
+data_dir = '../data/CIFAR10'
 v_sz = 10
 learning_rate = 0.01
 batch_sz = 4
@@ -33,12 +33,12 @@ transform = transforms.Compose(
     [transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
+trainset = torchvision.datasets.CIFAR10(root=data_dir, train=True,
                                         download=True, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_sz,
                                           shuffle=True, num_workers=2)
 
-testset = torchvision.datasets.CIFAR10(root='./data', train=False,
+testset = torchvision.datasets.CIFAR10(root=data_dir, train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_sz,
                                          shuffle=False, num_workers=2)
@@ -99,6 +99,8 @@ print(net)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
 
+loss_vec = []
+
 for epoch in range(num_epochs):
     for batch_idx, (images, labels) in enumerate(trainloader):
         images1, images2 = torch.chunk(images, 2, dim=0)
@@ -111,6 +113,13 @@ for epoch in range(num_epochs):
         out = net(images1, images2)
         loss = criterion(out, eq_labels)
 
-        print(loss.item())
+        loss_vec.append(loss.item())
         loss.backward()
         optimizer.step()
+
+        if batch_idx % 100 == 0:
+            print("Epoch[%d], Step [%d], Total Loss: %.4f"
+                   %(epoch+1, batch_idx, loss.item()))
+
+plt.plot(loss_vec)
+plt.show()
