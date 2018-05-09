@@ -1,0 +1,22 @@
+#!/bin/bash
+
+
+#sample call
+#./download_category ../data/20170509-bam-2.2m-Nja9G.sqlite media_graphite
+
+DB=$1
+CATEGORY=$2
+LIMIT=300
+
+sqlite3 ${DB} <<EOF  > ${CATEGORY}.txt
+    select src
+    from modules, crowd_labels where modules.mid = crowd_labels.mid
+    and attribute = "${CATEGORY}"
+    and label="positive"
+    limit ${LIMIT};
+EOF
+
+mkdir ${CATEGORY}
+#TODO: call python script to populate folder
+./download_images.py ${CATEGORY}
+rm -f ${CATEGORY}.txt
