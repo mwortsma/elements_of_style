@@ -11,7 +11,7 @@ from torch.autograd import Variable
 
 # Parameters
 data_dir = '../data/MNIST'
-z_sz = 5
+z_sz = 10
 learning_rate = 0.01
 batch_sz = 50
 im_sz = 28*28

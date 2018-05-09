@@ -14,16 +14,15 @@ import operator
 # HyperParameters
 learning_rate = 0.001
 num_epochs = 4
-im_side = 32
-im_sz = im_side*im_side # size of the image
-z_sz = 20 # z = [z_style, z_content]
+im_sz = 784
+z_sz = 2 # z = [z_style, z_content]
 dec_fc1_sz = 400
 batch_sz = 100
 
 # MNIST dataset
 dataset = datasets.MNIST(root='./data',
                          train=True,
-                         transform=transforms.Compose([torchvision.transforms.Pad(2),transforms.ToTensor()]),
+                         transform=transforms.ToTensor(),
                          download=True)
 
 # Data loader
@@ -42,12 +41,17 @@ class TompkinNet(nn.Module):
     def __init__(self):
         super(TompkinNet, self).__init__()
 
+        '''
         # Encoder Layers
         self.conv1 = nn.Conv2d(1, 6, 5)
         self.conv2 = nn.Conv2d(6, 16, 5)
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
         self.fc2 = nn.Linear(120, 84)
         self.fc3 = nn.Linear(84, 2*z_sz)
+        '''
+
+        self.enc_fc1 = nn.Linear(im_sz, 400)
+        self.enc_fc2 = nn.Linear(400, 2*z_sz)
 
         # Decoder Layers
         self.dec_fc1 = nn.Linear(z_sz, dec_fc1_sz)
@@ -59,13 +63,15 @@ class TompkinNet(nn.Module):
 
     # LeNet
     def encode(self,x):
+        '''
         x = F.max_pool2d(F.relu(self.conv1(x)), (2, 2))
         x = F.max_pool2d(F.relu(self.conv2(x)), 2)
         x = x.view(-1, self.num_flat_features(x))
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        return x
+        '''
+        return self.enc_fc2(F.leaky_relu(self.enc_fc1(x),0.2))
 
     def num_flat_features(self, x):
         size = x.size()[1:]
@@ -103,8 +109,8 @@ class TompkinNet(nn.Module):
         z1_style, _ = torch.chunk(z1, 2, dim=1)
         z2_style, _ = torch.chunk(z2, 2, dim=1)
         style = torch.cat((z1_style, z2_style), -1)
-        linkout = self.linknet(style)
-        return out1, mu1, logvar1, out2, mu2, logvar2, linkout
+
+        return out1, mu1, logvar1, out2, mu2, logvar2
 
     # Given a z, get an x
     def sample(self,z):
@@ -118,7 +124,7 @@ def vae_loss(x, out, mu, logvar):
     return KL_divergence, cross_entropy
 
 def link_loss(linkout, eq_labels):
-    return F.binary_cross_entropy(linkout, eq_labels)
+    return torch.Tensor([0])
 
 tnet = TompkinNet()
 print(tnet)
@@ -144,7 +150,7 @@ L_ = []
 
 for epoch in range(num_epochs):
     for batch_idx, (data, labels) in enumerate(data_loader):
-        images = to_var(data)
+        images = to_var(data.view(data.size(0), -1))
         images1, images2 = torch.chunk(images, 2, dim=0)
         labels1, labels2 = torch.chunk(labels, 2, dim=0)
 
@@ -160,10 +166,6 @@ for epoch in range(num_epochs):
         linkloss = link_loss(linkout, eq_labels)
         linkaccuracy = linkout.max(dim=1)[1].view((batch_sz/2, 1))
         linkaccuracy = linkaccuracy.eq(eq_labels_vec.long()).sum()
-
-        # ERROR THIS GOES TO 0
-        print(linkout.max(dim=1)[1].view((batch_sz/2, 1)).sum())
-        #print(linkout.max(dim=1)[1].view((batch_sz/2, 1)))
 
         KL = KL1 + KL2
         XEnt = XEnt1 + XEnt2
