@@ -1,4 +1,6 @@
 import argparse
+import os
+import math
 
 import torch
 import torchvision
@@ -6,6 +8,9 @@ import torchvision.transforms as transforms
 
 import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.cm as cm
+from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                  AnnotationBbox)
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,16 +21,24 @@ import modules.mnist_xcoders
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-load', help='path of model to load')
+parser.add_argument('-save', help='path of model to save')
+parser.add_argument('-res', help='path to save figures')
+parser.add_argument("-batch_sz", type=int,
+                    help="how many in batch", default=104)
+parser.add_argument("-z_sz", type=int,
+                    help="latent size", default=10)
+parser.add_argument("-epochs", type=int,
+                    help="how many epochs", default=10)
 args = parser.parse_args()
 print(args)
 
 # Parameters
-data_dir = '../data/MNIST'
-z_sz = 10
+data_dir = 'data/MNIST'
+z_sz = args.z_sz
 learning_rate = 0.01
-batch_sz = 100
+batch_sz = args.batch_sz
 im_sz = 28*28
-num_epochs = 50
+num_epochs = args.epochs
 
 DEVICE = torch.device('cpu')
 if torch.cuda.is_available():
@@ -53,13 +66,19 @@ iter_per_epoch = len(data_loader)
 
 # For debugging
 data_iter = iter(data_loader)
-fixed_x, _ = next(data_iter)
-torchvision.utils.save_image(fixed_x.cpu(), 'results/MNIST/real_images.png')
-fixed_x = fixed_x.view(fixed_x.size(0), im_sz)
+fixed_x_save, _ = next(data_iter)
+fixed_x = fixed_x_save.view(fixed_x_save.size(0), im_sz)
 fixed_x = Variable(fixed_x)
+
+# Helpers
+def icdf(v):
+    return torch.erfinv(2 * torch.Tensor([float(v)]) - 1) * math.sqrt(2)
 
 ## TRAIN
 if args.load == None:
+
+    torchvision.utils.save_image(fixed_x_save.cpu(),
+        os.path.join(args.res, 'real_images.png'))
 
     L_vec = []
     XEnt_vec = []
@@ -88,21 +107,82 @@ if args.load == None:
             reconst_images, _, _ = vae(fixed_x)
             reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
             torchvision.utils.save_image(reconst_images.data.cpu(),
-                'results/MNIST/reconst_images_%d.png' %(epoch))
+                os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
     plt.plot(L_vec, label="Total Loss")
     plt.plot(XEnt_vec, label="XEnt Loss")
     plt.plot(KL_vec, label="KL Divergence")
     plt.legend(loc=2)
-    #plt.show()
+    plt.savefig(os.path.join(args.res, 'loss.png'))
 
-    torch.save(vae.state_dict(), "trained_models/mnist_fc_vae.model")
+    torch.save(vae.state_dict(), args.save)
 
 else:
-    print(args.load)
+    torchvision.utils.save_image(fixed_x_save.cpu(),
+        os.path.join(args.res, 'real_images.png'))
+
     vae.load_state_dict(torch.load(args.load))
 
+    # Save reconstructed image
     reconst_images, _, _ = vae(fixed_x)
     reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
     torchvision.utils.save_image(reconst_images.data.cpu(),
-        'results/MNIST/reconst_images.png')
+        os.path.join(args.res, 'reconst_images.png'))
+
+
+    # Sample z from normal and view the results
+    normal_z = np.random.normal(0,1,(batch_sz,z_sz))
+    normal_z = Variable(torch.from_numpy(normal_z).float())
+    sample_images = vae.sample(normal_z)
+    sample_images = sample_images.view(sample_images.size(0), 1, 28, 28)
+    torchvision.utils.save_image(sample_images.data.cpu(),
+        os.path.join(args.res, 'sample_images.png'))
+
+    if z_sz == 2:
+        # Visualize the manifold, first using the icdf
+        num_rows=14.0
+        num_cols=9.0
+        manifold_z = np.zeros((batch_sz, 2))
+        for j in range(0,batch_sz):
+            row = j/8
+            col = j%8
+            row_z = icdf((1.0/num_rows) + (1.0/num_rows)*row)
+            col_z = icdf((1.0/num_cols) + (1.0/num_cols)*col)
+            manifold_z[j] = np.array([row_z, col_z])
+        manifold_z = Variable(torch.from_numpy(manifold_z).float())
+        manifold_images = vae.sample(manifold_z)
+        manifold_images = manifold_images.view(manifold_images.size(0), 1, 28, 28)
+        torchvision.utils.save_image(manifold_images.data.cpu(),
+            os.path.join(args.res, 'manifold.png'))
+
+
+        # Visualize the embedding space part 2
+        fig, ax = plt.subplots()
+        ax.set_ylim([-4,4])
+        ax.set_xlim([-4,4])
+        bottom_left = [0.081, 0.081]
+        top_right = [0.865, 0.845]
+        colors = cm.rainbow(np.linspace(0, 1, 10))
+        for batch in range(20):
+            data, label = next(data_iter)
+            data = Variable(data.view(data.size(0), im_sz))
+            out, mu, logvar = vae(data)
+            z = vae.reperam(mu, logvar)
+            z = z[:,:2]
+            z = z.detach().numpy()
+            for i in range(batch_sz):
+                single_image = data[i].view(1,1,28,28)
+                torchvision.utils.save_image(single_image.data.cpu(),
+                    os.path.join(args.res, 'single_image.png'))
+                ax.scatter(z[i,0], z[i,1], color=colors[label[i].item()])
+
+                if np.random.random() < 0.08:
+                    x_scale = 1-(4-z[i,0])/8.0
+                    y_scale = 1-(4-z[i,1])/8.0
+                    if x_scale < 0 or x_scale > 1 or y_scale < 0 or y_scale > 1: continue
+                    im = plt.imread(os.path.join(args.res,"single_image.png"), format='png')
+                    newax = fig.add_axes([bottom_left[0] + x_scale*(top_right[0]-bottom_left[0]), bottom_left[1] + y_scale*(top_right[1]-bottom_left[1]), .075, .075])
+                    newax.imshow(im)
+                    newax.axis('off')
+
+        plt.savefig(os.path.join(args.res, 'manifoldv2.png'))

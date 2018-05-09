@@ -25,7 +25,7 @@ class VAE(nn.Module):
         return out, mu, logvar
 
     def sample(self, z):
-        return self.decode(z)
+        return self.dec(z)
 
     def loss(self, x, out, mu, logvar, normalize=1, size_average=False):
         KL = -0.5*torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
