@@ -6,12 +6,13 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 
-import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.cm as cm
-from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
-                                  AnnotationBbox)
-from matplotlib.mlab import PCA
+import matplotlib.pyplot as plt
+
+#import matplotlib.cm as cm
+#from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+#                                  AnnotationBbox)
+
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -20,7 +21,7 @@ from torch.autograd import Variable
 import modules.vae
 import modules.mnist_xcoders
 
-from sklearn import decomposition
+#from sklearn import decompositioni
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-load', help='path of model to load')
@@ -34,6 +35,8 @@ parser.add_argument("-epochs", type=int,
                     help="how many epochs", default=10)
 args = parser.parse_args()
 print(args)
+
+
 
 # Parameters
 data_dir = 'data/MNIST'
@@ -106,19 +109,24 @@ if args.load == None:
                        "KL Loss: %.7f, XEnt Loss: %.4f, "
                        %(epoch, num_epochs-1, batch_idx, iter_per_epoch, L.item(),
                          KL.item(), XEnt.item()))
+		
+                plt.clf()		
+                plt.plot(L_vec, label="Total Loss")
+                plt.plot(XEnt_vec, label="XEnt Loss")
+                plt.plot(KL_vec, label="KL Divergence")
+                plt.legend(loc=2)
+                plt.savefig(os.path.join(args.res, 'loss.png'))
+		
 
             reconst_images, _, _ = vae(fixed_x)
             reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
             torchvision.utils.save_image(reconst_images.data.cpu(),
                 os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
-    plt.plot(L_vec, label="Total Loss")
-    plt.plot(XEnt_vec, label="XEnt Loss")
-    plt.plot(KL_vec, label="KL Divergence")
-    plt.legend(loc=2)
-    plt.savefig(os.path.join(args.res, 'loss.png'))
 
-    torch.save(vae.state_dict(), args.save)
+             
+            torch.save(vae.state_dict(), args.save)
+            plt.savefig(os.path.join(args.res, 'loss.png'))
 
 else:
     torchvision.utils.save_image(fixed_x_save.cpu(),
