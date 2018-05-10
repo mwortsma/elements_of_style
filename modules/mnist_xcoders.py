@@ -18,13 +18,17 @@ class FCEncoder(nn.Module):
 
 # Simple Decoder
 class FCDecoder(nn.Module):
-    def __init__(self,z_sz=10,h_sz=400,im_sz=784):
+    def __init__(self,z_sz=10,c_sz=0,h_sz=400,im_sz=784):
         super(FCDecoder, self).__init__()
-        self.fc1 = nn.Linear(z_sz,h_sz)
+        self.fc1 = nn.Linear(c_sz + z_sz,h_sz)
         self.fc2 = nn.Linear(h_sz,im_sz)
 
-    def forward(self,x):
-        return F.sigmoid(self.fc2(F.relu(self.fc1(x))))
+    def forward(self,x,c=None):
+        if c is not None:
+            x = torch.cat((c,x), dim=1)
+        print(x.size())
+        out = F.sigmoid(self.fc2(F.relu(self.fc1(x))))
+        return out
 
 # Encoder
 class ConvEncoder(nn.Module):
@@ -61,7 +65,7 @@ class DeconvDecoder(nn.Module):
         self.deconv4 = nn.ConvTranspose2d(32,32,kernel_size=5)
         self.deconv5 = nn.ConvTranspose2d(32,1,kernel_size=5)
 
-    def forward(self, x):
+    def forward(self, x,c=None):
         x = x.view(x.size(0), 8, 1, 1)
         x = F.relu(self.deconv1(x))
         x = F.relu(self.deconv2(x))

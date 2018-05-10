@@ -17,15 +17,15 @@ class VAE(nn.Module):
         z = mu + eps*torch.exp(logvar/2)
         return z
 
-    def forward(self, x):
+    def forward(self, x,c=None):
         h = self.enc(x)
         mu, logvar = torch.chunk(h,2,dim=1)
         z = self.reperam(mu, logvar)
-        out = self.dec(z)
+        out = self.dec(z,c)
         return out, mu, logvar
 
-    def sample(self, z):
-        return self.dec(z)
+    def sample(self, z,c=None):
+        return self.dec(z,c)
 
     def loss(self, x, out, mu, logvar, normalize=1, size_average=False):
         KL = -0.5*torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
