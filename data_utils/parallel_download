@@ -1,0 +1,21 @@
+#!/bin/bash
+
+#downloads 1000 images of some category
+
+#sample call
+# ./parallel_download ../data/20170509-bam-2.2m-Nja9G.sqlite media_graphite
+
+DB=$1
+CATEGORY=$2
+LIMIT=10
+
+#verify that gnu parallel is up to date
+# brew install parallel
+
+sqlite3 ${DB} <<EOF | parallel -C'\|' 'mkdir -p {2}; wget --wait=1 {1} -O {2}/{3}.jpg'
+    select src, attribute, modules.mid
+    from modules, crowd_labels where modules.mid = crowd_labels.mid
+    and attribute = "${CATEGORY}"
+    and label="positive"
+    limit ${LIMIT};
+EOF
