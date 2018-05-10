@@ -19,6 +19,7 @@ from torch.autograd import Variable
 
 import modules.vae
 import modules.mnist_xcoders
+import modules.contrastive_loss
 
 from sklearn import decomposition
 
@@ -48,12 +49,6 @@ if torch.cuda.is_available():
     DEVICE = torch.device('cuda')
 
 # Load Data
-'''
-dataset = torchvision.datasets.MNIST(root=data_dir,
-                         train=True,
-                         transform=transforms.Compose([transforms.Pad(2),transforms.ToTensor()]),
-                         download=True)
-'''
 dataset = torchvision.datasets.MNIST(root=data_dir,
                          train=True,
                          transform=transforms.ToTensor(),
@@ -66,9 +61,10 @@ data_loader = torch.utils.data.DataLoader(dataset=dataset,
 
 
 
-enc = modules.mnist_xcoders.ConvEncoder(z_sz)
-dec = modules.mnist_xcoders.DeconvDecoder(z_sz)
+enc = modules.mnist_xcoders.FCEncoder(z_sz)
+dec = modules.mnist_xcoders.FCDecoder(z_sz)
 vae = modules.vae.VAE(enc,dec,z_sz)
+cont = modules.contrastive_loss.ContrastiveLoss()
 
 optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate)
 iter_per_epoch = len(data_loader)
@@ -76,7 +72,8 @@ iter_per_epoch = len(data_loader)
 # For debugging
 data_iter = iter(data_loader)
 fixed_x_save, _ = next(data_iter)
-fixed_x = Variable(fixed_x_save)
+fixed_x = fixed_x_save.view(fixed_x_save.size(0), im_sz)
+fixed_x = Variable(fixed_x)
 
 # Helpers
 def icdf(v):
@@ -93,11 +90,23 @@ if args.load == None:
     KL_vec = []
 
     for epoch in range(num_epochs):
-        for batch_idx, (images, _) in enumerate(data_loader):
-            images = Variable(images)
-            out, mu, logvar = vae(images)
-            KL, XEnt = vae.loss(images, out, mu, logvar)
-            L = KL + XEnt
+        for batch_idx, (images, labels) in enumerate(data_loader):
+            images = Variable(images.view(images.size(0), im_sz))
+            images1, images2 = torch.chunk(images,2,dim=0)
+            labels1, labels2 = torch.chunk(labels,2,dim=0)
+            out1, mu1, logvar1 = vae(images1)
+            z1 = vae.reperam(mu1,logvar1)
+            z1, _  = torch.chunk(z1, 2, dim=1)
+            out2, mu2, logvar2 = vae(images2)
+            z2 = vae.reperam(mu2,logvar2)
+            z2, _  = torch.chunk(z2, 2, dim=1)
+            eqlab = Variable(1-labels1.eq(labels2).float())
+            CLoss = cont(z1,z2,eqlab)
+            KL1, XEnt1 = vae.loss(images1, out1, mu1, logvar1)
+            KL2, XEnt2 = vae.loss(images2, out2, mu2, logvar2)
+            KL = KL1 + KL2
+            XEnt = XEnt1 + XEnt2
+            L = KL1 + XEnt1 + KL2 + XEnt2 + CLoss
             optimizer.zero_grad()
             L.backward()
             optimizer.step()
@@ -108,11 +117,12 @@ if args.load == None:
 
             if batch_idx % 100 == 0:
                 print ("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f, "
-                       "KL Loss: %.7f, XEnt Loss: %.4f, "
+                       "KL Loss: %.7f, XEnt Loss: %.4f, Contrastive Loss: %.4f"
                        %(epoch, num_epochs-1, batch_idx, iter_per_epoch, L.item(),
-                         KL.item(), XEnt.item()))
+                         KL.item(), XEnt.item(), CLoss.item()))
 
             reconst_images, _, _ = vae(fixed_x)
+            reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
             torchvision.utils.save_image(reconst_images.data.cpu(),
                 os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
@@ -132,6 +142,7 @@ else:
 
     # Save reconstructed image
     reconst_images, _, _ = vae(fixed_x)
+    reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
     torchvision.utils.save_image(reconst_images.data.cpu(),
         os.path.join(args.res, 'reconst_images.png'))
 
@@ -140,6 +151,7 @@ else:
     normal_z = np.random.normal(0,1,(batch_sz,z_sz))
     normal_z = Variable(torch.from_numpy(normal_z).float())
     sample_images = vae.sample(normal_z)
+    sample_images = sample_images.view(sample_images.size(0), 1, 28, 28)
     torchvision.utils.save_image(sample_images.data.cpu(),
         os.path.join(args.res, 'sample_images.png'))
 
@@ -157,6 +169,7 @@ else:
             manifold_z[j] = np.array([row_z, col_z])
         manifold_z = Variable(torch.from_numpy(manifold_z).float())
         manifold_images = vae.sample(manifold_z)
+        manifold_images = manifold_images.view(manifold_images.size(0), 1, 28, 28)
         torchvision.utils.save_image(manifold_images.data.cpu(),
             os.path.join(args.res, 'manifoldv0.png'))
 
@@ -174,6 +187,7 @@ else:
             manifold_z[j] = np.array([col_z, row_z ])
         manifold_z = Variable(torch.from_numpy(manifold_z).float())
         manifold_images = vae.sample(manifold_z)
+        manifold_images = manifold_images.view(manifold_images.size(0), 1, 28, 28)
         torchvision.utils.save_image(manifold_images.data.cpu(),
             os.path.join(args.res, 'manifoldv1.png'),nrow=int(num_cols))
 
@@ -194,6 +208,7 @@ else:
                                               shuffle=True)
     data_iter1 = iter(data_loader1)
     data, label = next(data_iter1)
+    data = Variable(data.view(data.size(0), im_sz))
     out, mu, logvar = vae(data)
     z = vae.reperam(mu, logvar)
     z = z.detach().numpy()
@@ -202,6 +217,7 @@ else:
     if z_sz > 2:
         z = pca.transform(z)
     for i in range(num_images):
+        single_image = data[i].view(1,1,28,28)
         torchvision.utils.save_image(single_image.data.cpu(),
             os.path.join(args.res, 'single_image.png'))
         ax.scatter(z[i,0], z[i,1], color=colors[label[i].item()])

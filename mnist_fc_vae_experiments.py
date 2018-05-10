@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.cm as cm
 from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
                                   AnnotationBbox)
+from matplotlib.mlab import PCA
 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,6 +19,8 @@ from torch.autograd import Variable
 
 import modules.vae
 import modules.mnist_xcoders
+
+from sklearn import decomposition
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-load', help='path of model to load')
@@ -148,41 +151,70 @@ else:
             col = j%8
             row_z = icdf((1.0/num_rows) + (1.0/num_rows)*row)
             col_z = icdf((1.0/num_cols) + (1.0/num_cols)*col)
+            # print(row,col, ":", row_z,col_z)
             manifold_z[j] = np.array([row_z, col_z])
         manifold_z = Variable(torch.from_numpy(manifold_z).float())
         manifold_images = vae.sample(manifold_z)
         manifold_images = manifold_images.view(manifold_images.size(0), 1, 28, 28)
         torchvision.utils.save_image(manifold_images.data.cpu(),
-            os.path.join(args.res, 'manifold.png'))
+            os.path.join(args.res, 'manifoldv0.png'))
+
+        # Visualize the manifold v1
+        num_images=144
+        num_rows=12
+        num_cols=12
+        manifold_z = np.zeros((num_images, 2))
+        for j in range(num_images):
+            row = num_rows - j/num_cols
+            col = j%num_cols
+            row_z = -4 + 8*float(row/num_rows)
+            col_z = -4 + 8*float(col/num_cols)
+            # print(row,col, ":", row_z,col_z)
+            manifold_z[j] = np.array([col_z, row_z ])
+        manifold_z = Variable(torch.from_numpy(manifold_z).float())
+        manifold_images = vae.sample(manifold_z)
+        manifold_images = manifold_images.view(manifold_images.size(0), 1, 28, 28)
+        torchvision.utils.save_image(manifold_images.data.cpu(),
+            os.path.join(args.res, 'manifoldv1.png'),nrow=int(num_cols))
 
 
-        # Visualize the embedding space part 2
-        fig, ax = plt.subplots()
-        ax.set_ylim([-4,4])
-        ax.set_xlim([-4,4])
-        bottom_left = [0.081, 0.081]
-        top_right = [0.865, 0.845]
-        colors = cm.rainbow(np.linspace(0, 1, 10))
-        for batch in range(20):
-            data, label = next(data_iter)
-            data = Variable(data.view(data.size(0), im_sz))
-            out, mu, logvar = vae(data)
-            z = vae.reperam(mu, logvar)
-            z = z[:,:2]
-            z = z.detach().numpy()
-            for i in range(batch_sz):
-                single_image = data[i].view(1,1,28,28)
-                torchvision.utils.save_image(single_image.data.cpu(),
-                    os.path.join(args.res, 'single_image.png'))
-                ax.scatter(z[i,0], z[i,1], color=colors[label[i].item()])
 
-                if np.random.random() < 0.08:
-                    x_scale = 1-(4-z[i,0])/8.0
-                    y_scale = 1-(4-z[i,1])/8.0
-                    if x_scale < 0 or x_scale > 1 or y_scale < 0 or y_scale > 1: continue
-                    im = plt.imread(os.path.join(args.res,"single_image.png"), format='png')
-                    newax = fig.add_axes([bottom_left[0] + x_scale*(top_right[0]-bottom_left[0]), bottom_left[1] + y_scale*(top_right[1]-bottom_left[1]), .075, .075])
-                    newax.imshow(im)
-                    newax.axis('off')
 
-        plt.savefig(os.path.join(args.res, 'manifoldv2.png'))
+    # Visualize the embedding space part 2
+    fig, ax = plt.subplots()
+    ax.set_ylim([-4,4])
+    ax.set_xlim([-4,4])
+    bottom_left = [0.081, 0.081]
+    top_right = [0.865, 0.845]
+    colors = cm.rainbow(np.linspace(0, 1, 10))
+
+    num_images=1000
+    data_loader1 = torch.utils.data.DataLoader(dataset=dataset,
+                                              batch_size=num_images,
+                                              shuffle=True)
+    data_iter1 = iter(data_loader1)
+    data, label = next(data_iter1)
+    data = Variable(data.view(data.size(0), im_sz))
+    out, mu, logvar = vae(data)
+    z = vae.reperam(mu, logvar)
+    z = z.detach().numpy()
+    pca = decomposition.PCA(n_components=2)
+    pca.fit(z)
+    if z_sz > 2:
+        z = pca.transform(z)
+    for i in range(num_images):
+        single_image = data[i].view(1,1,28,28)
+        torchvision.utils.save_image(single_image.data.cpu(),
+            os.path.join(args.res, 'single_image.png'))
+        ax.scatter(z[i,0], z[i,1], color=colors[label[i].item()])
+
+        if np.random.random() < 0.00:
+            x_scale = 1-(4-z[i,0])/8.0
+            y_scale = 1-(4-z[i,1])/8.0
+            if x_scale < 0 or x_scale > 1 or y_scale < 0 or y_scale > 1: continue
+            im = plt.imread(os.path.join(args.res,"single_image.png"), format='png')
+            newax = fig.add_axes([bottom_left[0] + x_scale*(top_right[0]-bottom_left[0]), bottom_left[1] + y_scale*(top_right[1]-bottom_left[1]), .075, .075])
+            newax.imshow(im)
+            newax.axis('off')
+
+    plt.savefig(os.path.join(args.res, 'manifoldv2.png'))
