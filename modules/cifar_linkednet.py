@@ -70,6 +70,10 @@ class CIFAR10LinkedNet(nn.Module):
 
         self.mlp = MLP(device)
 
+        # --- init layers ---
+        nn.init.xavier_uniform(self.conv1.weight)
+        nn.init.xavier_uniform(self.conv2.weight)
+
         self._dev = device
         self.to(device)
 
