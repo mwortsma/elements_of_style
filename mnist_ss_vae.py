@@ -21,8 +21,6 @@ im_sz = 28*28
 
 num_classes = 10
 
-
-
 # Helpers
 def icdf(v):
     return torch.erfinv(2 * torch.Tensor([float(v)]) - 1) * np.sqrt(2)
@@ -94,8 +92,6 @@ def main():
 
         # we want to visualise what happens when we take a batch example,
         #  which has label y, and sample from SS-VAE with label y' \in [0,9]
-        x = fixed_x[0].view(1, -1)
-        x = x.expand(num_classes+1, -1) # duplicate along axis 0?
 
         # l is a vector of [y, 0, 1, 2, ..., 9]
         l = np.arange(-1,num_classes)
@@ -103,16 +99,24 @@ def main():
 
         b = np.eye(num_classes)[l] # one-hot vectors 11 x 10 from l
         labels = torch.from_numpy(b).float().to(DEVICE)
-        print(labels)
         labels = Variable(labels) # XXX: do we need to wrap a tensor in a variable at inference?
 
-        z_params = vae.enc_z(x)
-        z = vae.reparam_z(z_params) # sample a latent z for x
-        out = vae.sample(z, labels) # fix z, and vary labels
-        out[0,:] = fixed_x[0,:]
-        out = out.view(-1, 1, 28, 28)
+        res = torch.zeros(num_classes+1, num_classes+1, im_sz)
 
-        torchvision.utils.save_image(out.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=11)
+        for k in range(num_classes+1):
+            x = fixed_x[k].view(1, -1) # take a batch example
+            x = x.expand(num_classes+1, -1) # duplicate along rows
+            pi = vae.enc_y(x)
+            inp = torch.cat([x,pi], 1)
+            z_params = vae.enc_z(inp)
+            z = vae.reparam_z(z_params) # sample a latent z for x
+            out = vae.sample(z, labels) # fix z, and vary labels
+            out[0,:] = fixed_x[k,:]
+            res[k] = out
+
+        res = res.view(-1, 1, 28, 28)
+
+        torchvision.utils.save_image(res.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=11)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
