@@ -27,3 +27,5 @@ dataset_loader = torch.utils.data.DataLoader(bam_dataset, batch_size=batch_sz, s
 
 Helpful commands:
 python3 mnist_fc_vae_experiments.py -res=results/MNIST/train_z_sz_10/ -save=trained_models/mnist_fc_vae_z_sz_10.model -z_sz=10 -epochs=50
+
+this is a test.
