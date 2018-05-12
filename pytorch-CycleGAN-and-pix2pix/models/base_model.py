@@ -84,10 +84,7 @@ class BaseModel():
                 if len(self.gpu_ids) > 0 and torch.cuda.is_available():
                     net.module.load_state_dict(torch.load(save_path))
                 else:
-                    sd = torch.load(save_path)
-                    del sd['model.10.conv_block.5.weight']
-                    del sd['model.10.conv_block.5.bias']
-                    net.load_state_dict(sd)
+                    net.load_state_dict(torch.load(save_path))
 
     # print network information
     def print_networks(self, verbose):

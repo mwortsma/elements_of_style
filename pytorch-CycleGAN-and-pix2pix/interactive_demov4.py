@@ -20,8 +20,8 @@ if __name__ == '__main__':
     opt.no_flip = True  # no flip
     opt.display_id = -1  # no visdom display
     print(opt.dataset_mode)
-    data_loader = CreateDataLoader(opt)
-    dataset = data_loader.load_data()
+    #data_loader = CreateDataLoader(opt)
+    #dataset = data_loader.load_data()
     model = create_model(opt)
     visualizer = Visualizer(opt)
     # create website
