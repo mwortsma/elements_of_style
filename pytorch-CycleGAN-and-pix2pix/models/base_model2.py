@@ -89,14 +89,11 @@ class BaseModel():
                     sd = torch.load(save_path)
                     good = ["model.10.conv_block.6.weight", "model.10.conv_block.6.bias", "model.11.conv_block.6.weight", "model.11.conv_block.6.bias", "model.12.conv_block.6.weight", "model.12.conv_block.6.bias", "model.13.conv_block.6.weight", "model.13.conv_block.6.bias", "model.14.conv_block.6.weight", "model.14.conv_block.6.bias", "model.15.conv_block.6.weight", "model.15.conv_block.6.bias", "model.16.conv_block.6.weight", "model.16.conv_block.6.bias", "model.17.conv_block.6.weight", "model.17.conv_block.6.bias", "model.18.conv_block.6.weight", "model.18.conv_block.6.bias"]
                     bad = ["model.10.conv_block.5.weight", "model.10.conv_block.5.bias", "model.11.conv_block.5.weight", "model.11.conv_block.5.bias", "model.12.conv_block.5.weight", "model.12.conv_block.5.bias", "model.13.conv_block.5.weight", "model.13.conv_block.5.bias", "model.14.conv_block.5.weight", "model.14.conv_block.5.bias", "model.15.conv_block.5.weight", "model.15.conv_block.5.bias", "model.16.conv_block.5.weight", "model.16.conv_block.5.bias", "model.17.conv_block.5.weight", "model.17.conv_block.5.bias", "model.18.conv_block.5.weight", "model.18.conv_block.5.bias"]
-                    '''
+
                     for i in range(18):
                         sd[good[i]] = sd[bad[i]]
                         del sd[bad[i]]
-                    '''
-                    for k in sd:
-                        print(k)
-                    del
+
                     net.load_state_dict(sd)
         print('networks loaded!')
 
