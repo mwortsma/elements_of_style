@@ -114,9 +114,22 @@ def main():
 
         torchvision.utils.save_image(out.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=11)
 
+        if args.walk:
+            # set up visualizer-- see how changing z alters changes images over all labels y
+            f = lambda z: vae.sample(
+                Variable(torch.from_numpy(z).float().to(DEVICE)),labels).data.numpy().reshape(28, -1)
+                # will this sizing work?
+            np_x = fixed_x[0].view(28,28).data.numpy()
+            mu, logvar = torch.chunk(z_params,2,dim=1)
+            np_mu = mu.data.numpy()
+            np_sigma = torch.exp(logvar/2).data.numpy() # XXX is this right??
+            v = vis.Visualizer(f,np_x,np_mu,np_sigma)
+            v.visualize()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-load', help='path of model to load')
+    parser.add_argument('-walk', action='store_true', help='displays GUI to walk embedding space')
     parser.add_argument('-save', help='path of model to save')
     parser.add_argument('-res', help='path to save figures')
     parser.add_argument("-batch_sz", type=int,
@@ -132,4 +145,3 @@ if __name__ == "__main__":
         DEVICE = torch.device('cuda')
 
     main()
-
