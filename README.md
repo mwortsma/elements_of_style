@@ -1,5 +1,9 @@
 # elements of style
 
+Run this command if you have a mac, a camera, and opencv2 (pip3 install python-opencv i think?)
+cd pytorch-CycleGAN-and-pix2pix
+python3 interactive_demov4.py --dataroot ./datasets/monet2photo --name monet2photo50 --model cycle_gan --which_model_netG resnet_9blocks  --dataset_mode unaligned --checkpoints_dir ./checkpoints/ --gpu_ids -1
+
 Important things:
 1. Python 3
 2. Make a folder at the same level as this called data. We have added it to the gitignore.
