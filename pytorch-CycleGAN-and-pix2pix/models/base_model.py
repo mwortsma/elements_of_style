@@ -76,6 +76,7 @@ class BaseModel():
 
     # load models from the disk
     def load_networks(self, which_epoch):
+        print('here!')
         for name in self.model_names:
             if isinstance(name, str):
                 save_filename = '%s_net_%s.pth' % (which_epoch, name)
@@ -84,7 +85,17 @@ class BaseModel():
                 if len(self.gpu_ids) > 0 and torch.cuda.is_available():
                     net.module.load_state_dict(torch.load(save_path))
                 else:
-                    net.load_state_dict(torch.load(save_path))
+                    print(save_path)
+                    sd = torch.load(save_path)
+                    good = ["model.10.conv_block.6.weight", "model.10.conv_block.6.bias", "model.11.conv_block.6.weight", "model.11.conv_block.6.bias", "model.12.conv_block.6.weight", "model.12.conv_block.6.bias", "model.13.conv_block.6.weight", "model.13.conv_block.6.bias", "model.14.conv_block.6.weight", "model.14.conv_block.6.bias", "model.15.conv_block.6.weight", "model.15.conv_block.6.bias", "model.16.conv_block.6.weight", "model.16.conv_block.6.bias", "model.17.conv_block.6.weight", "model.17.conv_block.6.bias", "model.18.conv_block.6.weight", "model.18.conv_block.6.bias"]
+                    bad = ["model.10.conv_block.5.weight", "model.10.conv_block.5.bias", "model.11.conv_block.5.weight", "model.11.conv_block.5.bias", "model.12.conv_block.5.weight", "model.12.conv_block.5.bias", "model.13.conv_block.5.weight", "model.13.conv_block.5.bias", "model.14.conv_block.5.weight", "model.14.conv_block.5.bias", "model.15.conv_block.5.weight", "model.15.conv_block.5.bias", "model.16.conv_block.5.weight", "model.16.conv_block.5.bias", "model.17.conv_block.5.weight", "model.17.conv_block.5.bias", "model.18.conv_block.5.weight", "model.18.conv_block.5.bias"]
+
+                    for i in range(18):
+                        sd[good[i]] = sd[bad[i]]
+                        del sd[bad[i]]
+
+                    net.load_state_dict(sd)
+        print('networks loaded!')
 
     # print network information
     def print_networks(self, verbose):
