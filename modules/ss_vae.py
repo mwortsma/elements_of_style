@@ -49,11 +49,10 @@ class SS_VAE(nn.Module):
 
     def __init__(self, img_size=784, num_classes=10, z_sz=50, device=torch.device("cpu")):
         super(SS_VAE, self).__init__()
-        self.enc_z = Encoder(in_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) params
+        self.enc_z = Encoder(in_sz=img_size+num_classes, z_sz=z_sz, device=device) # q_phi(z|x) params
+#        self.enc_z = Encoder(in_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) params
         self.enc_y = Classifier(in_sz=img_size, num_classes=num_classes, device=device) # q_phi(y|x) params
         self.dec = Decoder(in_sz=z_sz+num_classes, out_sz=img_size, device=device) # p(x|y,z)
-
-#        self.one_hot_eye = np.eye(num_classes) # for converting class label to one-hot
 
         self._dev = device
         self._alpha = 0.1 * 60000 # weighting term on classifier loss
@@ -68,10 +67,12 @@ class SS_VAE(nn.Module):
         return z
 
     def forward(self, x):
-        z_params = self.enc_z(x) # assume z independent of y
+        pi = self.enc_y(x) # pi? pi_phi(x)?? idk
+
+        inp = torch.cat([x,pi], 1)
+        z_params = self.enc_z(inp)
         z = self.reparam_z(z_params)
 
-        pi = self.enc_y(x) # pi? pi_phi(x)?? idk
         out = self.dec(z, pi)
 
         # - out informs reconstruction loss term
