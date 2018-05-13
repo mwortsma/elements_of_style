@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-import modules.ss_vae as ss_vae
+import modules.ss_vae_conv as ss_vae
 
 # Parameters
 data_dir = 'data/MNIST'
@@ -79,7 +79,7 @@ def main():
     fixed_y = Variable(fixed_y_save.to(DEVICE))
     torchvision.utils.save_image(fixed_x_save, os.path.join(args.res, 'real_images.png'))
 
-    vae = ss_vae.SS_VAE(device=DEVICE)
+    vae = ss_vae.SS_VAE(device=DEVICE, z_sz=z_sz)
     if args.load is None:
         train(vae, data_loader, fixed_x, fixed_y)
     else:
@@ -106,9 +106,7 @@ def main():
         for k in range(num_classes+1):
             x = fixed_x[k].view(1, -1) # take a batch example
             x = x.expand(num_classes+1, -1) # duplicate along rows
-            pi = vae.enc_y(x)
-#            inp = torch.cat([x,pi], 1)
-            z_params = vae.enc_z(x.view(-1, 1, 28, 28))
+            z_params, pi = vae.encoder(x)
             z = vae.reparam_z(z_params) # sample a latent z for x
             out = vae.sample(z, labels) # fix z, and vary labels
             out[0,:] = fixed_x[k,:]
