@@ -117,9 +117,7 @@ def main():
         for k in range(num_classes+1):
             x = fixed_x[k].view(1, -1) # take a batch example
             x = x.expand(num_classes+1, -1) # duplicate along rows
-            pi = vae.enc_y(x)
-#            inp = torch.cat([x,pi], 1)
-            z_params = vae.enc_z(x.view(-1, 1, 28, 28))
+            z_params, pi = vae.encoder(x)
             z = vae.reparam_z(z_params) # sample a latent z for x
             out = vae.sample(z, labels) # fix z, and vary labels
             out[0,:] = fixed_x[k,:]
