@@ -11,8 +11,9 @@ from models import create_model
 from util.visualizer import Visualizer
 from util import html
 
-
 if __name__ == '__main__':
+
+
     opt = TestOptions().parse()
     opt.nThreads = 1   # test code only supports nThreads = 1
     opt.batchSize = 1  # test code only supports batchSize = 1
@@ -32,6 +33,7 @@ if __name__ == '__main__':
 
     cap = cv2.VideoCapture(0)
 
+    first = True
     while(True):
 
         ret, frame = cap.read()
@@ -39,8 +41,11 @@ if __name__ == '__main__':
 
         img = frame[:,280:1000]
         img  = cv2.resize(img, (256, 256))
+
+
         img_swap = np.swapaxes(img, 0,2)
-        # print(img.shape)
+
+
 
         t = Variable(torch.from_numpy(img_swap).view(1,3,256,256).float())
         with torch.no_grad():
@@ -51,12 +56,16 @@ if __name__ == '__main__':
 
             out = np.swapaxes(out, 0, 2)
 
+
             out  = cv2.resize(out, (720, 720))
 
 
             cv2.imshow('frame',out)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+
+
+
 
         '''
         visuals = model.get_current_visuals()
@@ -66,4 +75,35 @@ if __name__ == '__main__':
         '''
 
 cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+
+
+cap = cv2.VideoCapture(0)
+
+while(True):
+    ret, frame = cap.read()
+
+    line = proc.stdout.readline()
+    if line != '':
+        #the real code does filtering here
+        b = line.rstrip()
+        b = int(b)
+    else:
+        b = 0
+        break
+    cv2.imwrite('testimg.jpg', frame)
+    break
+
+    # Our operations on the frame come here
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    if b > 400:
+        cv2.imshow('frame',frame)
+    else:
+        cv2.imshow('frame',gray)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
 cv2.destroyAllWindows()
