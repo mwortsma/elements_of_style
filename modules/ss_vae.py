@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import numpy as np
 
 import torch
@@ -30,6 +31,64 @@ class Decoder(nn.Module):
         inp = F.softplus(self.fc1(inp))
         return F.sigmoid(self.fc2(inp))
 
+class ConvEncoder(nn.Module):
+    def __init__(self, z_sz=50, device=torch.device("cpu")):
+        super(ConvEncoder, self).__init__()
+        self.convNet = nn.Sequential(OrderedDict([
+            ('conv0', nn.Conv2d(1, 32, kernel_size=(5,5))), # 1x28x28 -> 32x24x24
+            ('nl0', nn.ReLU()),
+            ('conv1', nn.Conv2d(32, 16, kernel_size=(5,5))), # 32x24x24 -> 16x20x20
+            ('nl1', nn.ReLU()),
+            ('conv2', nn.Conv2d(16, 16, kernel_size=(7,7))), # 16x20x20 -> 16x14x14
+            ('nl2', nn.ReLU()),
+            ('conv3', nn.Conv2d(16, 4, kernel_size=(7,7))), # 16x14x14 -> 4x8x8
+        ]))
+        self.MLP = nn.Sequential(OrderedDict([
+            ('fc4', nn.Linear(4*8*8, 128)),
+            ('nl4', nn.ReLU()),
+            ('fc5', nn.Linear(128, z_sz*2))
+        ]))
+
+        for i in range(len(self.convNet)):
+            layer = self.convNet[i]
+            if type(layer) == nn.Module:
+                nn.init.xavier_uniform(layer.weight)
+
+        self._dev = device
+        self.to(device)
+
+    def forward(self, x):
+        x = self.convNet(x)
+        return self.MLP(x.view(x.size(0), -1))
+
+class ConvClassifier(nn.Module):
+    def __init__(self, num_classes=10, device=torch.device("cpu")):
+        # let's try LeNet here...
+        super(ConvClassifier, self).__init__()
+        self.convNet = nn.Sequential(OrderedDict([
+            ('conv0', nn.Conv2d(1, 6, kernel_size=(5,5), padding=2)), # 1x28x28 -> 6x28x28
+            ('nl0', nn.ReLU()),
+            ('pool0', nn.MaxPool2d(2,2)), # 6x28x28 -> 6x14x14
+            ('conv1', nn.Conv2d(6, 16, kernel_size=(5,5))), # 6x14x14 -> 16x10x10
+            ('nl1', nn.ReLU()),
+            ('pool1', nn.MaxPool2d(2,2))
+        ])) # final output is 16x5x5
+        self.MLP = nn.Sequential(OrderedDict([
+            ('fc2', nn.Linear(16*5*5, 64)),
+            ('nl2', nn.ReLU()),
+            ('fc4', nn.Linear(64, num_classes)),
+            ('sm4', nn.Softmax(dim=1))
+        ]))
+
+        for i in range(len(self.convNet)):
+            layer = self.convNet[i]
+            if type(layer) == nn.Module:
+                nn.init.xavier_uniform(layer.weight)
+
+    def forward(self, x):
+        f = self.convNet(x)
+        return self.MLP(f.view(f.size(0), -1))
+
 class Classifier(nn.Module):
     def __init__(self, in_sz=784, num_classes=10, h_sz=500, device=torch.device("cpu")):
         super(Classifier, self).__init__()
@@ -49,9 +108,11 @@ class SS_VAE(nn.Module):
 
     def __init__(self, img_size=784, num_classes=10, z_sz=50, device=torch.device("cpu")):
         super(SS_VAE, self).__init__()
-        self.enc_z = Encoder(in_sz=img_size+num_classes, z_sz=z_sz, device=device) # q_phi(z|x) params
+#        self.enc_z = Encoder(in_sz=img_size+num_classes, z_sz=z_sz, device=device) # q_phi(z|x) params
 #        self.enc_z = Encoder(in_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) params
-        self.enc_y = Classifier(in_sz=img_size, num_classes=num_classes, device=device) # q_phi(y|x) params
+        self.enc_z = ConvEncoder(z_sz=z_sz, device=device) # q_phi(z|x) for now
+#        self.enc_y = Classifier(in_sz=img_size, num_classes=num_classes, device=device) # q_phi(y|x) params
+        self.enc_y = ConvClassifier(num_classes=num_classes, device=device)
         self.dec = Decoder(in_sz=z_sz+num_classes, out_sz=img_size, device=device) # p(x|y,z)
 
         self._dev = device
@@ -67,10 +128,11 @@ class SS_VAE(nn.Module):
         return z
 
     def forward(self, x):
-        pi = self.enc_y(x) # pi? pi_phi(x)?? idk
+        pi = self.enc_y(x.view(-1, 1, 28, 28)) # pi? pi_phi(x)?? idk
 
-        inp = torch.cat([x,pi], 1)
-        z_params = self.enc_z(inp)
+#        inp = torch.cat([x,pi], 1)
+#        z_params = self.enc_z(inp)
+        z_params = self.enc_z(x.view(-1, 1, 28, 28))
         z = self.reparam_z(z_params)
 
         out = self.dec(z, pi)
