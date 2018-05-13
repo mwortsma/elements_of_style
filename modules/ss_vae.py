@@ -126,11 +126,11 @@ class SS_VAE(nn.Module):
         return z
 
     def forward(self, x):
-        pi = self.enc_y(x.view(-1, 1, 28, 28)) # pi? pi_phi(x)?? idk
+        pi = self.enc_y(x) # pi? pi_phi(x)?? idk
 
 #        inp = torch.cat([x,pi], 1)
 #        z_params = self.enc_z(inp)
-        z_params = self.enc_z(x.view(-1, 1, 28, 28))
+        z_params = self.enc_z(x)
         z = self.reparam_z(z_params)
 
         out = self.dec(z, pi)
@@ -141,9 +141,9 @@ class SS_VAE(nn.Module):
         return out, z_params, pi
 
     def encoder(self, x):
-        z_params = self.enc_z(x.view(-1, 1, 28, 28))
-        pi = self.enc_y(x.view(-1, 1, 28, 28))
-        return z_params, pi 
+        z_params = self.enc_z(x)
+        pi = self.enc_y(x)
+        return z_params, pi
 
     def sample(self, z, pi):
         return self.dec(z, pi)
@@ -161,4 +161,3 @@ class SS_VAE(nn.Module):
         recon_XEnt = F.binary_cross_entropy(out, x, size_average=size_average)
         label_XEnt = self._alpha*F.cross_entropy(pi, y, size_average=size_average)
         return recon_XEnt + label_XEnt + KL - self._logpy
-
