@@ -1,4 +1,8 @@
-.DS_Store
+# project-specific:
+results/
+data/
+
+*DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
