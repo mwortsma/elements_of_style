@@ -6,6 +6,8 @@ import torchvision
 import torchvision.transforms as transforms
 
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
 import torch.nn as nn
@@ -13,6 +15,7 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 
 import modules.ss_vae as ss_vae
+import visualize as vis
 
 # Parameters
 data_dir = 'data/MNIST'
@@ -24,6 +27,14 @@ num_classes = 10
 # Helpers
 def icdf(v):
     return torch.erfinv(2 * torch.Tensor([float(v)]) - 1) * np.sqrt(2)
+
+def horzArr(a):
+    ''' finagles a (num_images)x1x(a)x(b) array into a (a)x(b*num_images) array '''
+    a = np.squeeze(a) # get rid of extra 1d
+    a = np.split(a,np.size(a,0)) # separate images
+    a= np.concatenate(a,2) # put together horizontally
+    a = np.squeeze(a) # get rid of extra 1d
+    return a
 
 def train(vae, data_loader, fixed_x, fixed_y):
     optimizer = torch.optim.Adam(vae.parameters(), lr=learning_rate)
@@ -79,11 +90,11 @@ def main():
     fixed_y = Variable(fixed_y_save.to(DEVICE))
     torchvision.utils.save_image(fixed_x_save, os.path.join(args.res, 'real_images.png'))
 
-    vae = ss_vae.SS_VAE(device=DEVICE)
+    vae = ss_vae.SS_VAE(device=DEVICE, z_sz=z_sz)
     if args.load is None:
         train(vae, data_loader, fixed_x, fixed_y)
     else:
-        vae.load_state_dict(torch.load(args.load))
+        vae.load_state_dict(torch.load(args.load, map_location=lambda storage, loc: storage))
 
         # Save reconstructed image
         reconst_images, _, _ = vae(fixed_x)
@@ -106,9 +117,7 @@ def main():
         for k in range(num_classes+1):
             x = fixed_x[k].view(1, -1) # take a batch example
             x = x.expand(num_classes+1, -1) # duplicate along rows
-            pi = vae.enc_y(x)
-            inp = torch.cat([x,pi], 1)
-            z_params = vae.enc_z(inp)
+            z_params, pi = vae.encoder(x)
             z = vae.reparam_z(z_params) # sample a latent z for x
             out = vae.sample(z, labels) # fix z, and vary labels
             out[0,:] = fixed_x[k,:]
@@ -118,9 +127,20 @@ def main():
 
         torchvision.utils.save_image(res.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=11)
 
+        if args.walk:
+            # set up visualizer-- see how changing z alters changes images over all labels y
+            f = lambda z:horzArr(vae.sample(
+                    # to get z: convert to torch, replicate 11 times
+                    Variable(torch.from_numpy(z).float().to(DEVICE)).view(1,-1).expand(num_classes+1,-1),
+                    # format to be 11 28x28 images horizontally arranged
+                    labels).view(-1,1,28,28).data.numpy())
+            v = vis.Visualizer(f,z_sz=z_sz)
+            v.visualize()
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('-load', help='path of model to load')
+    parser.add_argument('-walk', action='store_true', help='displays GUI to walk embedding space')
     parser.add_argument('-save', help='path of model to save')
     parser.add_argument('-res', help='path to save figures')
     parser.add_argument("-batch_sz", type=int,
@@ -136,4 +156,3 @@ if __name__ == "__main__":
         DEVICE = torch.device('cuda')
 
     main()
-
