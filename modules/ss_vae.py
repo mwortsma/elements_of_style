@@ -106,7 +106,7 @@ class SS_VAE(nn.Module):
         Kingma, et al. (2014). Semi-supervised Learning with Deep Generative Models. arXiv preprint arXiv:1406.5298v2
     """
 
-    def __init__(self, img_size=784, num_classes=10, z_sz=50, device=torch.device("cpu")):
+    def __init__(self, batch_size=100, img_size=784, num_classes=10, z_sz=50, device=torch.device("cpu")):
         super(SS_VAE, self).__init__()
 #        self.enc_z = Encoder(in_sz=img_size+num_classes, z_sz=z_sz, device=device) # q_phi(z|x,y) params
         self.enc_z = Encoder(in_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) params

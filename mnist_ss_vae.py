@@ -14,12 +14,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-import modules.ss_vae as ss_vae
+import modules.ss_vae_conv as ss_vae
 import visualize as vis
 
 # Parameters
 data_dir = 'data/MNIST'
-learning_rate = 0.01
+learning_rate = 0.001
 im_sz = 28*28
 
 num_classes = 10
@@ -55,12 +55,12 @@ def train(vae, data_loader, fixed_x, fixed_y):
             if batch_idx % 100 == 0:
                 print("Epoch[%d/%d], Step [%d/%d], Total Loss: %.4f " %(epoch, args.epochs-1, batch_idx, iter_per_epoch, L.item()))
 
-            # visualise progress:
-            reconst_images, _, _ = vae(fixed_x) # another forward pass on fixed inputs
-            reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28) # reshape
-            torchvision.utils.save_image(reconst_images.data.cpu(), os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
+        # visualise progress:
+        reconst_images, _, _ = vae(fixed_x) # another forward pass on fixed inputs
+        reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28) # reshape
+        torchvision.utils.save_image(reconst_images.data.cpu(), os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
-            torch.save(vae.state_dict(), args.save) # save model to disk
+        torch.save(vae.state_dict(), args.save) # save model to disk
 
     plt.plot(L_vec)
     plt.savefig(os.path.join(args.res, 'loss.png'))
@@ -90,7 +90,7 @@ def main():
     fixed_y = Variable(fixed_y_save.to(DEVICE))
     torchvision.utils.save_image(fixed_x_save, os.path.join(args.res, 'real_images.png'))
 
-    vae = ss_vae.SS_VAE(device=DEVICE, z_sz=z_sz)
+    vae = ss_vae.SS_VAE(device=DEVICE, z_sz=z_sz, batch_size=args.batch_sz)
     if args.load is None:
         train(vae, data_loader, fixed_x, fixed_y)
     else:
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     parser.add_argument("-batch_sz", type=int,
                         help="how many in batch", default=100)
     parser.add_argument("-z_sz", type=int,
-                        help="latent size", default=50)
+                        help="latent size", default=20)
     parser.add_argument("-epochs", type=int,
                         help="how many epochs", default=10)
     parser.add_argument("-device", help="specify device to run on", default="cpu")
