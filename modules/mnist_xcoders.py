@@ -26,7 +26,6 @@ class FCDecoder(nn.Module):
     def forward(self,x,c=None):
         if c is not None:
             x = torch.cat((c,x), dim=1)
-        print(x.size())
         out = F.sigmoid(self.fc2(F.relu(self.fc1(x))))
         return out
 

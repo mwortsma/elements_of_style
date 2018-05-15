@@ -1,0 +1,244 @@
+python main.py  -commands="cmd2 -sir_tree_path -d=4 -steps=3000000 |\
+            cmd2 -sir_local_path  -d=2 |\
+            cmd2 -sir_meanfield_path" -shared="-T=4 -p=0.6 -q=0.3 -nu=[0.8,0.2,0.0]" -show_plot -type=path -labels="Full Simulation, Local Recursions, Mean Field Approx" -title="SIR Process"
+
+
+python main.py  -commands="cmd2 -contact_tree_path -d=3 -steps=3000000 |\
+cmd2 -contact_local_path -d=3 |\
+cmd2 -contact_meanfield_path" -shared="-T=5 -p=0.8 -q=0.1 -nu=[0.5,0.5]" -show_plot -type=path -labels="Full Simulation, Local Recursions, Mean Field Approx" -title="Contact Process"
+
+python main.py \
+ -commands="cmd2 -contact_graph_path -graph=ring -n=50 -steps=3000000 |\
+            cmd2 -contact_local_path  -d=2 |\
+            cmd2 -contact_meanfield_path"\
+ -shared="-T=4 -p=0.6 -q=0.3 -nu=[0.6,0.4]"\
+ -show_plot -type=path\
+ -labels="Full Simulation, Local Recursions, Mean Field Approx"\
+ -title="Contact Process"
+
+python main.py  -commands="cmd2 -sir_graph_time -graph=ring -n=120 -steps=10000 |\
+cmd2 -sir_local_time -tau=0 -d=2 |\
+cmd2 -sir_local_time -tau=1 -d=2 |\
+cmd2 -sir_meanfield_time" -shared="-T=50 -p=0.5 -q=0.1 -nu=[0.6,0.4,0.0]" -show_plot -type=time -labels="Full Simulation, Tau Approx (Tau=0), Tau Approx (Tau=1), Mean Field Approx" -title="Contact Process"
+
+
+############# commands
+
+res1:
+python main.py \
+  -commands="cmd2 -contact_graph_path -graph=ring -n=50 -steps=3000000 |\
+             cmd2 -contact_local_path  -d=2 |\
+             cmd2 -contact_meanfield_path"\
+  -shared="-T=4 -p=0.6 -q=0.3 -nu=[0.6,0.4]"\
+  -show_plot -type=path\
+  -labels="Full Simulation, Local Recursions, Mean Field Approx"\
+  -title="Contact Process"
+
+res2:
+python main.py  -commands="cmd2 -contact_tree_path -d=3 -steps=3000000 |\
+cmd2 -contact_local_path -d=3 |\
+cmd2 -contact_meanfield_path" \
+-shared="-T=5 -p=0.6 -q=0.3 -nu=[0.5,0.5]" \
+-show_plot -type=path \
+-labels="Full Simulation, Local Recursions, Mean Field Approx" -title="Contact Process"
+
+res3 (with tau=2):
+python main.py  -commands="cmd2 -sir_graph_time -graph=ring -n=120 -steps=10000 |\
+cmd2 -sir_local_time -tau=0 -d=2 |\
+cmd2 -sir_local_time -tau=1 -d=2 |\
+cmd2 -sir_local_time -tau=2 -d=2 |\
+cmd2 -sir_meanfield_time" -shared="-T=30 -p=0.5 -q=0.1 -nu=[0.7,0.3,0.0]" \
+-show_plot -type=time -labels="Full Simulation, Tau Approx (Tau=0), Tau Approx (Tau=1), Tau Approx (Tau=2), Mean Field Approx" -title="SIR Process"
+
+res3:
+python main.py  -commands="cmd2 -sir_graph_time -graph=ring -n=120 -steps=1000000 |\
+cmd2 -sir_local_time -tau=0 -d=2 |\
+cmd2 -sir_local_time -tau=1 -d=2 |\
+cmd2 -sir_meanfield_time" -shared="-T=30 -p=0.5 -q=0.1 -nu=[0.8,0.2,0.0]" -show_plot -type=time -labels="Full Simulation, Tau Approx (Tau=0), Tau Approx (Tau=1),  Mean Field Approx" -title="SIR Process"
+
+res4:
+python main.py  -commands="cmd2 -potts_gibbs_end |\
+cmd2 -potts_mcmc_end -graph=ring -steps=1000000 |\
+cmd2 -potts_local_end -tau=0 -d=2 |\
+cmd2 -potts_meanfield_end" -shared="-T=50 -d=2 -n=5 -beta=0.5 -nu=[0.3,0.3,0.4]" -show_plot \
+-labels="Gibbs Measure, MCMC, Tau Approx (Tau=0), Mean Field Approx"
+
+
+python main.py  -commands="cmd2 -potts_mcmc_end -graph=ring -steps=1000000 |\
+cmd2 -potts_local_end -tau=0 -d=2 |\
+cmd2 -potts_meanfield_end" -shared="-T=100 -d=2 -n=20 -beta=0.5 -nu=[0.3,0.3,0.4]" -show_plot \
+-labels="MCMC, Tau Approx (Tau=0), Mean Field Approx"
+
+
+### TODAY
+
+
+python main.py \
+ -commands="cmd2 -contact_graph_time -graph=ring -n=50 -steps=20000 |\
+            cmd2 -contact_local_time -tau=1 -d=2 |\
+            cmd2 -contact_meanfield_time"\
+ -shared="-T=30 -p=0.6 -q=0.1 -nu=[0.6,0.4]"\
+ -show_plot -type=time\
+ -labels="Full Simulation, Local Approx (Tau=1), Mean Field Approx"\
+ -title="Contact Process"
+
+# Contact1
+ python main.py \
+  -commands="cmd2 -contact_graph_time -graph=ring -n=50 -steps=500000 |\
+             cmd2 -contact_local_time -tau=0 -d=2 |\
+             cmd2 -contact_local_time -tau=1 -d=2 |\
+             cmd2 -contact_pairapprox_time -tau=0 -d=2 |\
+             cmd2 -contact_meanfield_time"\
+  -shared="-T=30 -p=0.6 -q=0.1 -nu=[0.6,0.4]"\
+  -show_plot -type=time\
+  -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+  -title="Contact Process"
+
+# Sir1
+python main.py \
+ -commands="cmd2 -sir_graph_time -graph=ring -n=50 -steps=10000 |\
+            cmd2 -sir_local_time -tau=0 -d=2 |\
+            cmd2 -sir_local_time -tau=1 -d=2 |\
+            cmd2 -sir_pairapprox_time -tau=0 -d=2 |\
+            cmd2 -sir_meanfield_time"\
+ -shared="-T=30 -p=0.9 -q=0.1 -nu=[0.8,0.2,0]"\
+ -show_plot -type=time\
+ -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+ -title="SIR Process"
+
+ # Contact2
+  python main.py \
+   -commands="cmd2 -contact_graph_time -graph=ring -n=50 -steps=500000 |\
+              cmd2 -contact_local_time -tau=0 -d=2 |\
+              cmd2 -contact_local_time -tau=1 -d=2 |\
+              cmd2 -contact_pairapprox_time -tau=0 -d=2 |\
+              cmd2 -contact_meanfield_time"\
+   -shared="-T=30 -p=0.6 -q=0.3 -nu=[0.5,0.5]"\
+   -show_plot -type=time\
+   -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+   -title="Contact Process"
+
+# SIR 2
+   python main.py \
+    -commands="cmd2 -sir_graph_time -graph=ring -n=50 -steps=500000 |\
+               cmd2 -sir_local_time -tau=0 -d=2 |\
+               cmd2 -sir_local_time -tau=1 -d=2 |\
+               cmd2 -sir_pairapprox_time -tau=0 -d=2 |\
+               cmd2 -sir_meanfield_time"\
+    -shared="-T=30 -p=0.6 -q=0.3 -nu=[0.8,0.2,0]"\
+    -show_plot -type=time\
+    -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+    -title="SIR Process"
+
+# Path
+python main.py \
+ -commands="cmd2 -contact_graph_path -graph=ring -n=50 -steps=20000 |\
+            cmd2 -contact_local_path  -d=2 -tau=0 |\
+            cmd2 -contact_pairapprox_path  -d=2 -tau=0 |\
+            cmd2 -contact_meanfield_path"\
+ -shared="-T=5 -p=0.6 -q=0.1 -nu=[0.6,0.4]"\
+ -show_plot -type=path\
+ -labels="Full Simulation, Local Recursions (Tau=0), Pair Approx (Tau=0), Mean Field Approx"\
+ -title="Contact Process"
+
+
+
+
+
+
+ ## NEW NEW
+ # Contact1
+  python main.py \
+   -commands="cmd2 -contact_graph_time -graph=ring -n=50 -steps=500000 |\
+              cmd2 -contact_local_time -tau=0 -d=2 |\
+              cmd2 -contact_local_time -tau=1 -d=2 |\
+              cmd2 -contact_pairapprox_time -tau=0 -d=2 |\
+              cmd2 -contact_meanfield_time"\
+   -shared="-T=40 -p=0.6 -q=0.1 -nu=[0.6,0.4]"\
+   -show_plot -type=time\
+   -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+   -title="Contact Process"
+
+   0,0.60,0.0001,0.0001,0.0001,0.0001
+   1,0.50,0.0001,0.0001,0.0001,0.0001
+   2,0.43,0.0017,0.0017,0.0017,0.0876
+   3,0.39,0.0026,0.0026,0.0026,0.2000
+   4,0.36,0.0024,0.0025,0.0040,0.2955
+   5,0.33,0.0021,0.0022,0.0080,0.3571
+   6,0.31,0.0036,0.0034,0.0163,0.3870
+   7,0.30,0.0035,0.0026,0.0249,0.3923
+   8,0.28,0.0012,0.0009,0.0322,0.3820
+   9,0.27,0.0058,0.0021,0.0460,0.3683
+   10,0.26,0.0114,0.0058,0.0596,0.3516
+   11,0.25,0.0129,0.0052,0.0677,0.3312
+   12,0.24,0.0166,0.0067,0.0757,0.3122
+   13,0.24,0.0234,0.0117,0.0846,0.2965
+   14,0.23,0.0253,0.0118,0.0869,0.2784
+   15,0.23,0.0294,0.0146,0.0895,0.2636
+   16,0.22,0.0312,0.0156,0.0888,0.2487
+   17,0.22,0.0352,0.0192,0.0892,0.2373
+   18,0.21,0.0339,0.0179,0.0840,0.2233
+   19,0.21,0.0348,0.0191,0.0806,0.2127
+   20,0.21,0.0336,0.0185,0.0752,0.2018
+   21,0.21,0.0349,0.0206,0.0723,0.1945
+   22,0.20,0.0339,0.0206,0.0676,0.1865
+   23,0.20,0.0331,0.0208,0.0634,0.1798
+   24,0.20,0.0322,0.0209,0.0594,0.1740
+   25,0.20,0.0361,0.0260,0.0605,0.1732
+   26,0.20,0.0331,0.0239,0.0552,0.1672
+   27,0.20,0.0307,0.0224,0.0509,0.1623
+   28,0.20,0.0305,0.0230,0.0490,0.1597
+   29,0.20,0.0318,0.0251,0.0489,0.1590
+   30,0.20,0.0258,0.0197,0.0417,0.1522
+   31,0.20,0.0230,0.0175,0.0380,0.1485
+   32,0.20,0.0274,0.0224,0.0415,0.1513
+   33,0.20,0.0228,0.0182,0.0363,0.1465
+   34,0.20,0.0226,0.0184,0.0355,0.1456
+   35,0.19,0.0173,0.0134,0.0299,0.1405
+   36,0.19,0.0201,0.0165,0.0323,0.1426
+   37,0.19,0.0226,0.0193,0.0345,0.1444
+   38,0.19,0.0147,0.0115,0.0264,0.1372
+   39,0.19,0.0169,0.0139,0.0283,0.1389
+
+
+   python main.py \
+    -commands="cmd2 -sir_graph_time -graph=ring -n=50 -steps=100000 |\
+               cmd2 -sir_local_time -tau=0 -d=2 |\
+               cmd2 -sir_local_time -tau=1 -d=2 |\
+               cmd2 -sir_pairapprox_time -tau=0 -d=2 |\
+               cmd2 -sir_meanfield_time"\
+    -shared="-T=30 -p=0.9 -q=0.1 -nu=[0.8,0.2,0]"\
+    -show_plot -type=time\
+    -labels="Full Simulation, Local Approx (Tau=0), Local Approx (Tau=1), Pair Approx, Mean Field Approx"\
+    -title="SIR Process"
+
+    0,0.80,0.0003,0.0003,0.0003,0.0003
+1,0.66,0.0021,0.0021,0.0021,0.0021
+2,0.55,0.0006,0.0006,0.0006,0.1543
+3,0.46,0.0030,0.0030,0.0060,0.4345
+4,0.40,0.0055,0.0055,0.0140,0.7183
+5,0.35,0.0017,0.0017,0.0177,0.8874
+6,0.30,0.0066,0.0066,0.0316,0.9553
+7,0.27,0.0062,0.0062,0.0408,0.9804
+8,0.24,0.0049,0.0049,0.0495,0.9903
+9,0.22,0.0057,0.0057,0.0603,0.9947
+10,0.21,0.0037,0.0037,0.0678,0.9969
+11,0.19,0.0031,0.0031,0.0762,0.9980
+12,0.18,0.0058,0.0058,0.0874,0.9987
+13,0.17,0.0089,0.0089,0.0983,0.9990
+14,0.16,0.0080,0.0080,0.1040,0.9993
+15,0.15,0.0082,0.0082,0.1101,0.9995
+16,0.15,0.0087,0.0087,0.1157,0.9996
+17,0.14,0.0110,0.0110,0.1226,0.9997
+18,0.14,0.0091,0.0091,0.1240,0.9997
+19,0.13,0.0121,0.0121,0.1303,0.9998
+20,0.13,0.0131,0.0131,0.1339,0.9998
+21,0.13,0.0137,0.0137,0.1366,0.9998
+22,0.12,0.0160,0.0160,0.1407,0.9998
+23,0.12,0.0168,0.0168,0.1427,0.9999
+24,0.12,0.0170,0.0170,0.1439,0.9999
+25,0.12,0.0173,0.0173,0.1449,0.9999
+26,0.12,0.0182,0.0182,0.1465,0.9999
+27,0.12,0.0181,0.0181,0.1467,0.9999
+28,0.12,0.0182,0.0182,0.1470,0.9999
+29,0.12,0.0170,0.0170,0.1457,0.9999
