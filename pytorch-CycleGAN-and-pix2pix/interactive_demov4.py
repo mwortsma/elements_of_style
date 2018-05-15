@@ -38,8 +38,8 @@ if __name__ == '__main__':
 
 
         img = frame[:,280:1000]
-        img  = cv2.resize(img, (256, 256))
-        img_swap = np.swapaxes(img, 0,2)
+        img_res  = cv2.resize(img, (256, 256))
+        img_swap = np.swapaxes(img_res, 0,2)
         # print(img.shape)
 
         t = Variable(torch.from_numpy(img_swap).view(1,3,256,256).float())

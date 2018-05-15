@@ -42,8 +42,15 @@ if __name__ == '__main__':
         img = frame[:,280:1000]
         img  = cv2.resize(img, (256, 256))
 
+        if first:
+            first = False
+            prevframe = img.copy()
+            continue
 
-        img_swap = np.swapaxes(img, 0,2)
+        img_new = img + cv2.absdiff(prevframe,img)
+        img_swap = np.swapaxes(img_new, 0,2)
+
+
 
 
 
@@ -63,7 +70,7 @@ if __name__ == '__main__':
             cv2.imshow('frame',out)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-
+        prevframe = img.copy()
 
 
 
