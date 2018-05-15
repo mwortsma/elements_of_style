@@ -45,7 +45,7 @@ def LeNetInverse():
     ]))
 
 class ConvDecoder(nn.Module):
-    def __init__(self, z_sz, y_sz, fsize=torch.Size([64, 14, 14]), device=torch.device("cpu")):
+    def __init__(self, img_sz, z_sz, y_sz, fsize=torch.Size([64, 14, 14]), device=torch.device("cpu")):
         """ fsize: torch.Size object - CxHxW - of the feature map to be "deconvolved"
             z_sz: dimensionality of latent z
             y_sz: dimensionality of latent y (number of classes)
@@ -68,7 +68,7 @@ class ConvDecoder(nn.Module):
             ('dconv3', nn.ConvTranspose2d(64, 64, 3, stride=2, padding=1, output_padding=1)),
             ('norm3', nn.BatchNorm2d(64)),
             ('relu3', nn.ReLU()),
-            ('dconv4', nn.ConvTranspose2d(64, 1, 1)),
+            ('dconv4', nn.ConvTranspose2d(64, img_sz[0], 1)),
             ('sigmoid', nn.Sigmoid())
         ]))
 
@@ -80,7 +80,6 @@ class ConvDecoder(nn.Module):
     def forward(self, z, y):
         inp = torch.cat([z,y], 1)
         inp = self.mlp(inp)
-#        c,h,w = self._fsize
         return self.deconvNet(inp.view(-1, *self._fsize))
 
 class ConvEncoder(nn.Module):
@@ -91,7 +90,7 @@ class ConvEncoder(nn.Module):
         """
         super(ConvEncoder, self).__init__()
         self.fmap = nn.Sequential(OrderedDict([
-            ('conv1', nn.Conv2d(1, 64, 3, padding=1)), # -> 64x28x28
+            ('conv1', nn.Conv2d(img_sz[0], 64, 3, padding=1)), # -> 64x28x28
             ('norm1', nn.BatchNorm2d(64)),
             ('relu1', nn.ReLU()),
             ('conv2', nn.Conv2d(64, 64, 3, padding=1)), # -> 64x28x28
@@ -125,7 +124,7 @@ class ConvClassifier(nn.Module):
         """
         super(ConvClassifier, self).__init__()
         self.fmap = nn.Sequential(OrderedDict([
-            ('conv1_1', nn.Conv2d(1, 32, 3, padding=1)),
+            ('conv1_1', nn.Conv2d(img_sz[0], 32, 3, padding=1)),
             ('relu1_1', nn.ReLU()),
             ('conv1_2', nn.Conv2d(32, 32, 3)), # -> 32x26x26
             ('relu1_2', nn.ReLU()),
@@ -162,9 +161,10 @@ class SS_VAE(nn.Module):
 
     def __init__(self, batch_size=100, img_size=torch.Size([1, 28, 28]), num_classes=10, z_sz=20, device=torch.device("cpu")):
         super(SS_VAE, self).__init__()
+        _, w, h = img_size
         self.enc_z = ConvEncoder(img_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) for now
         self.enc_y = ConvClassifier(img_sz=img_size, num_classes=num_classes, device=device)
-        self.dec = ConvDecoder(z_sz=z_sz, y_sz=num_classes, device=device)
+        self.dec = ConvDecoder(img_sz=img_size, z_sz=z_sz, y_sz=num_classes, device=device, fsize=torch.Size([64, int(h/2), int(w/2)]))
 
         self._dev = device
         self._alpha = 0.1 * batch_size # weighting term on classifier loss
@@ -193,8 +193,7 @@ class SS_VAE(nn.Module):
 
     def encoder(self, x):
         """ convenience function wrapping enc_z and enc_y steps """
-        c,h,w = self.img_size
-        x = x.view(-1, c, h, w)
+        x = x.view(-1, *self.img_size)
         pi = self.enc_y(x)
         z_params = self.enc_z(x)
         return z_params, pi

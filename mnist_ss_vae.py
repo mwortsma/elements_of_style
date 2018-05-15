@@ -43,7 +43,7 @@ def train(vae, data_loader, fixed_x, fixed_y):
     L_vec = [] # store losses for plotting later
     for epoch in range(args.epochs):
         for batch_idx, (images, labels) in enumerate(data_loader):
-            images = Variable(images.view(args.batch_sz, im_sz).to(DEVICE))
+            images = Variable(images.view(-1, im_sz).to(DEVICE))
             labels = Variable(labels.to(DEVICE))
             out, z_params, pi = vae(images) # forward pass
             L = vae.loss(images, labels, out, z_params, pi) # compute loss
@@ -90,7 +90,7 @@ def main():
     fixed_y = Variable(fixed_y_save.to(DEVICE))
     torchvision.utils.save_image(fixed_x_save, os.path.join(args.res, 'real_images.png'))
 
-    vae = ss_vae.SS_VAE(device=DEVICE, z_sz=z_sz, batch_size=args.batch_sz)
+    vae = ss_vae.SS_VAE(img_size=image_size, device=DEVICE, z_sz=z_sz, batch_size=args.batch_sz)
     if args.load is None:
         train(vae, data_loader, fixed_x, fixed_y)
     else:
