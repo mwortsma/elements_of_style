@@ -7,9 +7,11 @@ import torchvision
 import torchvision.transforms as transforms
 
 import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-#import matplotlib.cm as cm
+import matplotlib.cm as cm
 #from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
 #                                  AnnotationBbox)
 
@@ -21,11 +23,13 @@ from torch.autograd import Variable
 import modules.vae
 import modules.mnist_xcoders
 
-#from sklearn import decompositioni
+from sklearn import decomposition
+import visualize as vis
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-load', help='path of model to load')
 parser.add_argument('-save', help='path of model to save')
+parser.add_argument('-walk', action='store_true', help='displays GUI to walk embedding space')
 parser.add_argument('-res', help='path to save figures')
 parser.add_argument("-batch_sz", type=int,
                     help="how many in batch", default=104)
@@ -35,8 +39,6 @@ parser.add_argument("-epochs", type=int,
                     help="how many epochs", default=10)
 args = parser.parse_args()
 print(args)
-
-
 
 # Parameters
 data_dir = 'data/MNIST'
@@ -80,6 +82,17 @@ fixed_x = Variable(fixed_x)
 def icdf(v):
     return torch.erfinv(2 * torch.Tensor([float(v)]) - 1) * math.sqrt(2)
 
+def horzArr(a):
+    ''' finagles a (num_images)x1x(a)x(b) array into a (a)x(b*num_images) array '''
+    if np.size(a,0)==1:
+        return np.squeeze(a)
+    a = np.squeeze(a) # get rid of extra 1d
+    print(a.shape)
+    a = np.split(a,np.size(a,0)) # separate images
+    a= np.concatenate(a,2) # put together horizontally
+    a = np.squeeze(a) # get rid of extra 1d
+    return a
+
 ## TRAIN
 if args.load == None:
 
@@ -109,14 +122,14 @@ if args.load == None:
                        "KL Loss: %.7f, XEnt Loss: %.4f, "
                        %(epoch, num_epochs-1, batch_idx, iter_per_epoch, L.item(),
                          KL.item(), XEnt.item()))
-		
-                plt.clf()		
+
+                plt.clf()
                 plt.plot(L_vec, label="Total Loss")
                 plt.plot(XEnt_vec, label="XEnt Loss")
                 plt.plot(KL_vec, label="KL Divergence")
                 plt.legend(loc=2)
                 plt.savefig(os.path.join(args.res, 'loss.png'))
-		
+
 
             reconst_images, _, _ = vae(fixed_x)
             reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
@@ -124,7 +137,7 @@ if args.load == None:
                 os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
 
-             
+
             torch.save(vae.state_dict(), args.save)
             plt.savefig(os.path.join(args.res, 'loss.png'))
 
@@ -139,7 +152,6 @@ else:
     reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28)
     torchvision.utils.save_image(reconst_images.data.cpu(),
         os.path.join(args.res, 'reconst_images.png'))
-
 
     # Sample z from normal and view the results
     normal_z = np.random.normal(0,1,(batch_sz,z_sz))
@@ -226,3 +238,11 @@ else:
             newax.axis('off')
 
     plt.savefig(os.path.join(args.res, 'manifoldv2.png'))
+
+    if args.walk:
+        # set up visualizer-- see how changing z alters changes images over all labels y
+        f = lambda z:horzArr(vae.sample(
+                # to get z: convert to torch, replicate 11 times
+                Variable(torch.from_numpy(z).float().to(DEVICE)).view(1,-1)).view(-1,1,28,28).data.numpy())
+        v = vis.Visualizer(f,z_sz=z_sz)
+        v.visualize()

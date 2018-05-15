@@ -8,6 +8,7 @@ def npToTk(arr):
     ''' convert np array to imageTk format '''
     typedArr = (arr * 255).astype(np.uint8)
     im = Image.fromarray(typedArr)
+    im=im.resize((80*int(np.size(arr,1)/28),80),Image.BICUBIC)
     return ImageTk.PhotoImage(im)
 
 class Visualizer:
@@ -23,11 +24,13 @@ class Visualizer:
         self.z_sz = z_sz
         self.window_sz = window_sz
 
-        self.root = Tk()
+        self.root = Toplevel() #Tk()
         self.sliders = []
 
         # will be changed to a new image when sliders change
-        avgIm = npToTk(f(np.zeros(self.z_sz)))
+        npi = f(np.zeros(self.z_sz))
+        avgIm = npToTk(npi)
+        print('help let me out')
         self.walked=Label(self.root, image=avgIm)
         self.walked.image=avgIm
         self.walked.grid(row=0)
