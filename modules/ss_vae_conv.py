@@ -1,3 +1,9 @@
+"""
+
+Network architecture, implementation reference:
+http://bjlkeng.github.io/posts/semi-supervised-learning-with-variational-autoencoders/
+"""
+
 from collections import OrderedDict
 import numpy as np
 
@@ -11,6 +17,12 @@ def xavier_init(net):
         layer = net[i]
         if type(layer) == nn.Module:
             nn.init.xavier_uniform(layer.weight)
+
+def feature_size(cnn, input_size):
+    bs = 1
+    x = Variable(torch.rand(bs, *input_size))
+    out = cnn(x)
+    return out.view(bs, -1).size(1)
 
 def LeNetFeatures():
     return nn.Sequential(OrderedDict([
@@ -33,7 +45,12 @@ def LeNetInverse():
     ]))
 
 class ConvDecoder(nn.Module):
-    def __init__(self, z_sz=50, y_sz=10, out_sz=784, fsize=torch.Size([64, 14, 14]), device=torch.device("cpu")):
+    def __init__(self, z_sz, y_sz, fsize=torch.Size([64, 14, 14]), device=torch.device("cpu")):
+        """ fsize: torch.Size object - CxHxW - of the feature map to be "deconvolved"
+            z_sz: dimensionality of latent z
+            y_sz: dimensionality of latent y (number of classes)
+            device: can pass torch.device("cuda")
+        """
         super(ConvDecoder, self).__init__()
         num_flat_features = int(np.prod(fsize))
         self.mlp = nn.Sequential(OrderedDict([
@@ -63,11 +80,15 @@ class ConvDecoder(nn.Module):
     def forward(self, z, y):
         inp = torch.cat([z,y], 1)
         inp = self.mlp(inp)
-        c,h,w = self._fsize
-        return self.deconvNet(inp.view(-1, c, h, w))
+#        c,h,w = self._fsize
+        return self.deconvNet(inp.view(-1, *self._fsize))
 
 class ConvEncoder(nn.Module):
-    def __init__(self, z_sz=20, device=torch.device("cpu")):
+    def __init__(self, img_sz, z_sz=20, device=torch.device("cpu")):
+        """ img_sz: torch.Size object - CxHxW
+            z_sz: dimensionality of latent z
+            device: can pass torch.device("cuda")
+        """
         super(ConvEncoder, self).__init__()
         self.fmap = nn.Sequential(OrderedDict([
             ('conv1', nn.Conv2d(1, 64, 3, padding=1)), # -> 64x28x28
@@ -80,7 +101,7 @@ class ConvEncoder(nn.Module):
             ('norm3', nn.BatchNorm2d(64)),
             ('relu3', nn.ReLU())
         ]))
-        fsize = 64*28*28
+        fsize = feature_size(self.fmap, img_sz)
         self.MLP = nn.Sequential(OrderedDict([
             ('fc2', nn.Linear(fsize, 500)),
             ('nl2', nn.ReLU()),
@@ -97,8 +118,11 @@ class ConvEncoder(nn.Module):
         return self.MLP(x.view(x.size(0), -1))
 
 class ConvClassifier(nn.Module):
-    def __init__(self, num_classes=10, device=torch.device("cpu")):
-        # let's try LeNet here...
+    def __init__(self, img_sz, num_classes, device=torch.device("cpu")):
+        """ img_sz: torch.Size object - CxHxW
+            num_classes: number of output classes (dimensionality of latent y)
+            device: can pass torch.device("cuda")
+        """
         super(ConvClassifier, self).__init__()
         self.fmap = nn.Sequential(OrderedDict([
             ('conv1_1', nn.Conv2d(1, 32, 3, padding=1)),
@@ -114,7 +138,7 @@ class ConvClassifier(nn.Module):
             ('pool2', nn.MaxPool2d(2, 2)), # -> 64x5x5
             ('drop2', nn.Dropout2d(0.25)),
         ]))
-        fsize = 64*5*5
+        fsize = feature_size(self.fmap, img_sz)
         self.MLP = nn.Sequential(OrderedDict([
             ('fc1', nn.Linear(fsize, 500)),
             ('nl1', nn.ReLU()),
@@ -136,15 +160,18 @@ class SS_VAE(nn.Module):
         Kingma, et al. (2014). Semi-supervised Learning with Deep Generative Models. arXiv preprint arXiv:1406.5298v2
     """
 
-    def __init__(self, batch_size=100, img_size=784, num_classes=10, z_sz=20, device=torch.device("cpu")):
+    def __init__(self, batch_size=100, img_size=torch.Size([1, 28, 28]), num_classes=10, z_sz=20, device=torch.device("cpu")):
         super(SS_VAE, self).__init__()
-        self.enc_z = ConvEncoder(z_sz=z_sz, device=device) # q_phi(z|x) for now
-        self.enc_y = ConvClassifier(num_classes=num_classes, device=device)
+        self.enc_z = ConvEncoder(img_sz=img_size, z_sz=z_sz, device=device) # q_phi(z|x) for now
+        self.enc_y = ConvClassifier(img_sz=img_size, num_classes=num_classes, device=device)
         self.dec = ConvDecoder(z_sz=z_sz, y_sz=num_classes, device=device)
 
         self._dev = device
         self._alpha = 0.1 * batch_size # weighting term on classifier loss
         self._logpy = torch.tensor(np.log(1/num_classes), device=device)
+
+        self.img_size = img_size
+        self._N = int(np.prod(img_size)) # flattened image size
 
         self.to(device)
 
@@ -157,7 +184,7 @@ class SS_VAE(nn.Module):
     def forward(self, x):
         z_params, pi = self.encoder(x)
         z = self.reparam_z(z_params)
-        out = self.dec(z, pi).view(-1, 784)
+        out = self.dec(z, pi).view(-1, self._N)
 
         # - out informs reconstruction loss term
         # - z_params inform KL divergence loss term
@@ -166,13 +193,14 @@ class SS_VAE(nn.Module):
 
     def encoder(self, x):
         """ convenience function wrapping enc_z and enc_y steps """
-        x = x.view(-1, 1, 28, 28)
+        c,h,w = self.img_size
+        x = x.view(-1, c, h, w)
         pi = self.enc_y(x)
         z_params = self.enc_z(x)
         return z_params, pi
 
     def sample(self, z, pi):
-        return self.dec(z, pi).view(-1, 784)
+        return self.dec(z, pi).view(-1, self._N)
 
     def loss(self, x, y, out, z_params, pi, normalize=1, size_average=False):
         """ x: original image

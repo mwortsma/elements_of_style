@@ -20,8 +20,8 @@ import visualize as vis
 # Parameters
 data_dir = 'data/MNIST'
 learning_rate = 0.001
-im_sz = 28*28
-
+image_size = torch.Size([1, 28, 28])
+im_sz = int(np.prod(image_size))
 num_classes = 10
 
 # Helpers
@@ -57,7 +57,7 @@ def train(vae, data_loader, fixed_x, fixed_y):
 
         # visualise progress:
         reconst_images, _, _ = vae(fixed_x) # another forward pass on fixed inputs
-        reconst_images = reconst_images.view(reconst_images.size(0), 1, 28, 28) # reshape
+        reconst_images = reconst_images.view(reconst_images.size(0), *image_size) # reshape
         torchvision.utils.save_image(reconst_images.data.cpu(), os.path.join(args.res, 'reconst_images_%d.png' %(epoch)))
 
         torch.save(vae.state_dict(), args.save) # save model to disk
@@ -98,7 +98,7 @@ def main():
 
         # Save reconstructed image
         reconst_images, _, _ = vae(fixed_x)
-        reconst_images = reconst_images.view(-1, 1, 28, 28)
+        reconst_images = reconst_images.view(-1, *image_size)
         torchvision.utils.save_image(reconst_images.data.cpu(), os.path.join(args.res, 'reconst_images.png'))
 
         # we want to visualise what happens when we take a batch example,
@@ -110,7 +110,7 @@ def main():
 
         b = np.eye(num_classes)[l] # one-hot vectors 11 x 10 from l
         labels = torch.from_numpy(b).float().to(DEVICE)
-        labels = Variable(labels) # XXX: do we need to wrap a tensor in a variable at inference?
+        labels = Variable(labels)
 
         res = torch.zeros(num_classes+1, num_classes+1, im_sz)
 
@@ -123,9 +123,8 @@ def main():
             out[0,:] = fixed_x[k,:]
             res[k] = out
 
-        res = res.view(-1, 1, 28, 28)
-
-        torchvision.utils.save_image(res.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=11)
+        res = res.view(-1, *image_size)
+        torchvision.utils.save_image(res.data.cpu(), os.path.join(args.res, 'cvae.png'), nrow=num_classes+1)
 
         if args.walk:
             # set up visualizer-- see how changing z alters changes images over all labels y
@@ -133,7 +132,7 @@ def main():
                     # to get z: convert to torch, replicate 11 times
                     Variable(torch.from_numpy(z).float().to(DEVICE)).view(1,-1).expand(num_classes+1,-1),
                     # format to be 11 28x28 images horizontally arranged
-                    labels).view(-1,1,28,28).data.numpy())
+                    labels).view(-1,*image_size).data.numpy())
             v = vis.Visualizer(f,z_sz=z_sz)
             v.visualize()
 
