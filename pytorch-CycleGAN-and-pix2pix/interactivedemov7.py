@@ -37,7 +37,7 @@ if __name__ == '__main__':
     print(cap.isOpened())
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-    vout = cv2.VideoWriter('output.avi',fourcc, fps, (256,256))
+    vout = cv2.VideoWriter('final.avi',fourcc, fps, (256,256))
     first = True
     frame_num = 0
     while(True):

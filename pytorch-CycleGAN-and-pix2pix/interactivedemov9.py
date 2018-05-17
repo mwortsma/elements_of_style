@@ -40,7 +40,7 @@ if __name__ == '__main__':
     print(cap.isOpened())
     # Define the codec and create VideoWriter object
     fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
-    vout = cv2.VideoWriter('output3.avi',fourcc, fps, (256,256))
+    vout = cv2.VideoWriter('final2.avi',fourcc, fps, (256,256))
     first = True
     frame_num = 0
 
@@ -68,7 +68,7 @@ if __name__ == '__main__':
         if time > beat_times[idx]:
             idx += 1
 
-        diff = (beat_times[idx] - time)**3
+        diff = (beat_times[idx] - time)**2
         print(time, diff)
 
 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
             out = np.swapaxes(out, 0, 2)
             out = (out - out.min())/(out.max() - out.min())
 
-            out = np.uint8(0.4*img_resize + 255*(0.6)*out)
+            out = np.uint8(255*out)
             vout.write(out)
 
             #if cv2.waitKey(1) & 0xFF == ord('q'):
